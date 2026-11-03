@@ -5,10 +5,10 @@
  *   node scripts/shot.mjs --url http://127.0.0.1:4173/ --out .tmp/shot.png --wait 4000
  */
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-const args = { url: 'http://127.0.0.1:4173/', out: '.tmp/shot.png', wait: '4000', eval: '', port: '9333', w: '1280', h: '720' };
+const args = { url: 'http://127.0.0.1:4173/', out: '.tmp/shot.png', wait: '4000', eval: '', evalFile: '', port: '9333', w: '1280', h: '720' };
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i += 2) {
   const key = argv[i]?.replace(/^--/, '');
@@ -115,9 +115,11 @@ try {
   await send('Page.navigate', { url: args.url });
   await sleep(Number(args.wait));
 
-  if (args.eval) {
+  let evalSource = args.eval;
+  if (args.evalFile) evalSource = readFileSync(resolve(args.evalFile), 'utf8');
+  if (evalSource) {
     const r = await send('Runtime.evaluate', {
-      expression: args.eval,
+      expression: evalSource,
       returnByValue: true,
       awaitPromise: true,
     });
