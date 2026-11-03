@@ -3,51 +3,57 @@ import './ui/styles.css';
 import { Renderer } from './render/engine';
 import { Atmosphere } from './render/atmosphere';
 import { TextureLibrary } from './render/textures';
-import { Kit } from './render/world/kit';
-import { buildFlat } from './render/world/flat';
-import { FirstPersonController } from './game/controller';
-import type { Level } from './render/world/level';
+import { Game } from './game/game';
+import { UI } from './ui/ui';
+import { Scenario } from './content/scenario';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
-if (!canvas) throw new Error('Не найден canvas');
+if (!canvas) throw new Error('Нет canvas');
 
 const renderer = new Renderer(canvas);
-const tex = new TextureLibrary(renderer.scene);
-const kit = new Kit(renderer.scene, tex);
-const atmosphere = new Atmosphere(renderer.scene, tex);
+const textures = new TextureLibrary(renderer.scene);
+const atmosphere = new Atmosphere(renderer.scene, textures);
+const game = new Game(renderer, atmosphere);
+const ui = new UI(game);
+const scenario = new Scenario(game, ui);
 
-const levels = new Map<string, Level>();
-levels.set('flat', buildFlat(renderer.scene, kit));
+game.events = {
+  onLog: () => ui.renderLog(),
+  onVitals: () => ui.renderVitals(),
+  onSpot: (spot) => ui.setSpot(spot),
+  onPhase: (phase) => ui.onPhase(phase),
+  onTime: () => ui.renderTime(),
+};
 
-let current: Level = levels.get('flat')!;
-for (const [id, level] of levels) {
-  level.root.setEnabled(id === current.id);
-}
+game.controller.onInteract = () => {
+  if (game.phase !== 'playing') return;
+  if (ui.isInventoryOpen()) return;
+  const spot = game.findSpot();
+  if (spot) scenario.handle(spot);
+};
 
-const controller = new FirstPersonController(canvas, renderer.camera, {
-  getCollision: () => current.col,
-  isLocked: () => document.pointerLockElement === canvas,
-  getEncumbrance: () => 0,
+ui.showTitle(() => {
+  ui.showClassSelect((character) => {
+    ui.closeOverlay();
+    game.startNew(character.id);
+    scenario.intro();
+    ui.renderVitals();
+    ui.renderLog();
+    ui.renderTime();
+    game.enterPlay();
+    canvas.requestPointerLock();
+  });
 });
-controller.teleport(current.spawn.x, current.spawn.y, current.spawn.z, current.spawn.yaw);
-atmosphere.setInterior(current.outdoors ? 1 : 0.75);
+
+canvas.addEventListener('click', () => {
+  if (game.phase === 'playing' && document.pointerLockElement !== canvas) {
+    canvas.requestPointerLock();
+  }
+});
 
 renderer.onFrame((dt) => {
-  controller.update(dt);
-  atmosphere.update(dt, controller.position);
+  game.update(dt);
 });
 
-// отладочная ручка: сцены и состояние видны из консоли
-(window as unknown as { __game: unknown }).__game = { renderer, levels, controller, atmosphere };
-
-const ui = document.querySelector<HTMLDivElement>('#ui');
-if (ui) {
-  ui.innerHTML = `
-    <div class="boot">
-      <div class="boot__title">ПАНЕЛЬ</div>
-      <div class="boot__sub">клик — войти в квартиру</div>
-    </div>`;
-  canvas.addEventListener('click', () => {
-    ui.querySelector('.boot')?.remove();
-  });
-}
+// отладочная ручка: состояние видно из консоли
+(window as unknown as { __game: unknown }).__game = { game, renderer, ui, scenario };
