@@ -1,0 +1,20 @@
+{
+  "name": "panel-zone",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Пошаговая RPG от первого лица о ядерной зиме в российском панельном микрорайоне",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^9.33.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}

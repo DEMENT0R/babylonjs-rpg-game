@@ -1,0 +1,64 @@
+:root {
+  --ink: #0b0d10;
+  --fog: #8d949c;
+  --paper: #d7d2c8;
+  --warm: #c9a227;
+  --blood: #8e2b23;
+  --ice: #7f9fb5;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--ink);
+  overflow: hidden;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  color: var(--paper);
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.boot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 0.4rem;
+  text-align: center;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+}
+
+.boot__title {
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  letter-spacing: 0.6em;
+  color: #e6e2da;
+}
+
+.boot__sub {
+  font-size: 0.8rem;
+  letter-spacing: 0.5em;
+  color: #7e858e;
+}
