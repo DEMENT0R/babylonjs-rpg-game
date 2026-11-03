@@ -3,6 +3,7 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Clock, outsideTemperature } from '../core/clock';
 import { GameLog } from '../core/log';
 import { Player } from '../core/player';
+import { readSave, writeSave } from '../core/save';
 import { item } from '../core/items';
 import type { WarningId } from '../core/vitals';
 import type { Atmosphere } from '../render/atmosphere';
@@ -115,9 +116,7 @@ export class Game {
   travelTo(levelId: string, opts: { spawnAt?: string; silent?: boolean } = {}): void {
     const level = this.levels.get(levelId);
     if (!level) return;
-    this.level.root.setEnabled(false);
-    this.currentLevelId = levelId;
-    level.root.setEnabled(true);
+    this.switchLevel(levelId);
 
     let spawn = level.spawn;
     if (opts.spawnAt) {
@@ -129,12 +128,75 @@ export class Game {
     // высоту берём у пола под точкой выхода, а не у самой точки
     const floorY = floorHeightAt(spawn.x, spawn.z, level.col, level.spawn.y);
     this.controller.teleport(spawn.x, floorY, spawn.z, spawn.yaw);
-    this.atmosphere.setInterior(level.outdoors ? 1 : 0.72);
-    this.atmosphere.setIntensity(level.outdoors ? 1 : 0.35);
-    this.sfx?.setOutdoor(level.outdoors);
+    this.applyLevelAtmosphere();
     if (!opts.silent) this.log.info(`— ${level.title} —`, this.clock.label);
     this.events.onVitals();
     this.events.onTime();
+    if (!opts.silent) this.save();
+  }
+
+  private switchLevel(levelId: string): void {
+    const level = this.levels.get(levelId);
+    if (!level) return;
+    for (const [id, lvl] of this.levels) lvl.root.setEnabled(id === levelId);
+    this.currentLevelId = levelId;
+  }
+
+  private applyLevelAtmosphere(): void {
+    const level = this.level;
+    this.atmosphere.setInterior(level.outdoors ? 1 : 0.72);
+    this.atmosphere.setIntensity(level.outdoors ? 1 : 0.35);
+    this.sfx?.setOutdoor(level.outdoors);
+  }
+
+  // ————— сохранение —————
+
+  save(): void {
+    if (!this.player || this.phase === 'title') return;
+    writeSave({
+      charId: this.player.def.id,
+      vitals: { ...this.player.vitals.state },
+      inventory: this.player.inventory.snapshot(),
+      clock: { day: this.clock.day, minutes: this.clock.minutes },
+      flags: { ...this.flags },
+      level: this.currentLevelId,
+      position: {
+        x: this.controller.position.x,
+        y: this.controller.position.y,
+        z: this.controller.position.z,
+        yaw: this.controller.yaw,
+      },
+      log: this.log.recent(12).map((e) => ({ text: e.text, kind: e.kind })),
+    });
+  }
+
+  load(): boolean {
+    const data = readSave();
+    if (!data) return false;
+
+    this.player = Player.restore({
+      charId: data.charId,
+      vitals: data.vitals,
+      inventory: data.inventory,
+    });
+    this.clock.day = data.clock.day;
+    this.clock.minutes = data.clock.minutes;
+    this.flags = { ...data.flags };
+
+    this.log.entries = [];
+    for (const entry of data.log) this.log.push(entry.text, entry.kind);
+
+    this.switchLevel(data.level);
+    const level = this.level;
+    this.controller.teleport(data.position.x, data.position.y, data.position.z, data.position.yaw);
+    void level;
+    this.applyLevelAtmosphere();
+    this.setPhase('playing');
+    this.log.info('— продолжено —', this.clock.label);
+    this.events.onLog();
+    this.events.onVitals();
+    this.events.onTime();
+    return true;
   }
 
   get ambientC(): number {
@@ -246,6 +308,7 @@ export class Game {
 
   setFlag(key: string, value: number | boolean | string = true): void {
     this.flags[key] = value;
+    this.save();
   }
 
   /** Ближайшая точка интереса в пределах радиуса и в поле зрения. */
