@@ -4,6 +4,7 @@ import { CombatView } from '../ui/combatview';
 import type { DialogueOption, UI } from '../ui/ui';
 import type { Spot } from '../render/world/level';
 import { item } from '../core/items';
+import { clearSave } from '../core/save';
 
 const VALERA: EnemyDef = {
   id: 'valera',
@@ -472,6 +473,7 @@ export class Scenario {
     if (where === 'street') {
       g.say('Ты закрываешь дверь магазина и идёшь обратно через двор. Снег всё идёт.');
     }
+    clearSave();
     this.ui.showFinale('конец первого дня', text, () => window.location.reload());
     g.setPhaseExternal('ending');
   }
