@@ -34,10 +34,11 @@ export class Player {
     const def = characterById(charId);
     const p = new Player(def);
     for (const [id, n] of def.startItems) p.inventory.add(id, n);
-    for (const [slot, id] of Object.entries(def.startEquipped)) {
+    // надетое может не входить в стартовый набор — тогда выдаём и надеваем
+    for (const id of Object.values(def.startEquipped)) {
       if (!id) continue;
+      if (!p.inventory.has(id)) p.inventory.add(id, 1);
       p.inventory.equip(id);
-      void slot;
     }
     if (def.id === 'olya') p.inventory.capacityBonus += 4;
     return p;
