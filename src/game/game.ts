@@ -15,6 +15,7 @@ import { buildShop } from '../render/world/shop';
 import { Kit } from '../render/world/kit';
 import { TextureLibrary } from '../render/textures';
 import { FirstPersonController } from './controller';
+import { floorHeightAt } from '../render/collision';
 
 export type GamePhase = 'title' | 'playing' | 'dialogue' | 'combat' | 'dead' | 'ending';
 
@@ -122,10 +123,12 @@ export class Game {
     if (opts.spawnAt) {
       const spot = level.spots.find((s) => s.id === opts.spawnAt);
       if (spot) {
-        spawn = { x: spot.position[0], y: spot.position[1] - 1.0, z: spot.position[2], yaw: level.spawn.yaw };
+        spawn = { x: spot.position[0], y: level.spawn.y, z: spot.position[2], yaw: level.spawn.yaw };
       }
     }
-    this.controller.teleport(spawn.x, Math.max(0, spawn.y), spawn.z, spawn.yaw);
+    // высоту берём у пола под точкой выхода, а не у самой точки
+    const floorY = floorHeightAt(spawn.x, spawn.z, level.col, level.spawn.y);
+    this.controller.teleport(spawn.x, floorY, spawn.z, spawn.yaw);
     this.atmosphere.setInterior(level.outdoors ? 1 : 0.72);
     this.atmosphere.setIntensity(level.outdoors ? 1 : 0.35);
     this.sfx?.setOutdoor(level.outdoors);
