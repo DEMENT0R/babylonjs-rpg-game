@@ -24,7 +24,10 @@
     }
   };
 
-  click('.title-screen__go');
+  const startBtn = Array.from(document.querySelectorAll('.title-screen__go')).find((b) =>
+    b.textContent.includes('начать'),
+  );
+  if (startBtn) startBtn.click();
   await wait(500);
   click('.card', 4);
   await wait(900);

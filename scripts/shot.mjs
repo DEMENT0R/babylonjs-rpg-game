@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-const args = { url: 'http://127.0.0.1:4173/', out: '.tmp/shot.png', wait: '4000', eval: '', evalFile: '', port: '9333', w: '1280', h: '720' };
+const args = { url: 'http://127.0.0.1:4173/', out: '.tmp/shot.png', wait: '4000', eval: '', evalFile: '', evalFile2: '', port: '9333', w: '1280', h: '720' };
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i += 2) {
   const key = argv[i]?.replace(/^--/, '');
@@ -127,6 +127,18 @@ try {
     await sleep(600);
   }
 
+  if (args.evalFile2) {
+    await send('Page.navigate', { url: args.url });
+    await sleep(Number(args.wait));
+    const r2 = await send('Runtime.evaluate', {
+      expression: readFileSync(resolve(args.evalFile2), 'utf8'),
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    console.log('EVAL2:', JSON.stringify(r2.result?.result?.value ?? r2.result));
+    await sleep(800);
+  }
+
   const shot = await send('Page.captureScreenshot', { format: 'png' });
   const outPath = resolve(args.out);
   mkdirSync(dirname(outPath), { recursive: true });
@@ -136,6 +148,7 @@ try {
     console.log('--- console ---');
     for (const m of messages.slice(0, 60)) console.log(m);
   }
+  await sleep(1500);
 } finally {
   ws?.close();
   chrome.kill();
