@@ -698,3 +698,22 @@ body {
 .hidden {
   display: none !important;
 }
+
+.title-screen__buttons {
+  display: grid;
+  gap: 0.9rem;
+  justify-items: center;
+}
+
+.title-screen__go--primary {
+  border-color: rgba(215, 210, 200, 0.5);
+  color: #f0ece4;
+}
+
+.title-screen__hint {
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6d747d;
+  margin-top: -0.5rem;
+}

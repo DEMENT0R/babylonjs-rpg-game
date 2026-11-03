@@ -150,7 +150,7 @@ export class UI {
     this.overlay.style.pointerEvents = 'none';
   }
 
-  showTitle(onStart: () => void): void {
+  showTitle(opts: { onStart: () => void; onContinue?: () => void; continueHint?: string }): void {
     this.clearOverlay();
     this.overlay.style.pointerEvents = 'auto';
     const screen = el('div', 'title-screen');
@@ -158,10 +158,25 @@ export class UI {
     title.textContent = 'ПАНЕЛЬ';
     const sub = el('div', 'title-screen__sub');
     sub.innerHTML = 'день первый<br />ядерная зима, панельный район';
+
+    const buttons = el('div', 'title-screen__buttons');
+    if (opts.onContinue) {
+      const cont = el('button', 'title-screen__go title-screen__go--primary');
+      cont.textContent = 'продолжить';
+      cont.addEventListener('click', opts.onContinue);
+      buttons.appendChild(cont);
+      if (opts.continueHint) {
+        const hint = el('div', 'title-screen__hint mono');
+        hint.textContent = opts.continueHint;
+        buttons.appendChild(hint);
+      }
+    }
     const go = el('button', 'title-screen__go');
-    go.textContent = 'начать';
-    go.addEventListener('click', onStart);
-    screen.append(title, sub, go);
+    go.textContent = opts.onContinue ? 'начать заново' : 'начать';
+    go.addEventListener('click', opts.onStart);
+    buttons.appendChild(go);
+
+    screen.append(title, sub, buttons);
     this.overlay.appendChild(screen);
   }
 

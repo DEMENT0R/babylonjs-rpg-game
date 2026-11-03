@@ -7,6 +7,7 @@ import { Game } from './game/game';
 import { UI } from './ui/ui';
 import { Scenario } from './content/scenario';
 import { Sound } from './audio/sound';
+import { clearSave, describeSave, readSave } from './core/save';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvas) throw new Error('Нет canvas');
@@ -39,18 +40,35 @@ game.controller.onInteract = () => {
   if (spot) scenario.handle(spot);
 };
 
-ui.showTitle(() => {
-  sound.init();
-  ui.showClassSelect((character) => {
-    ui.closeOverlay();
-    game.startNew(character.id);
-    scenario.intro();
-    ui.renderVitals();
-    ui.renderLog();
-    ui.renderTime();
-    game.enterPlay();
-    canvas.requestPointerLock();
-  });
+const saved = readSave();
+
+ui.showTitle({
+  onStart: () => {
+    clearSave();
+    sound.init();
+    ui.showClassSelect((character) => {
+      ui.closeOverlay();
+      game.startNew(character.id);
+      scenario.intro();
+      ui.renderVitals();
+      ui.renderLog();
+      ui.renderTime();
+      game.enterPlay();
+      canvas.requestPointerLock();
+    });
+  },
+  onContinue: saved
+    ? () => {
+        sound.init();
+        if (game.load()) {
+          ui.renderVitals();
+          ui.renderLog();
+          ui.renderTime();
+          canvas.requestPointerLock();
+        }
+      }
+    : undefined,
+  continueHint: saved ? describeSave(saved) : undefined,
 });
 
 canvas.addEventListener('click', () => {
