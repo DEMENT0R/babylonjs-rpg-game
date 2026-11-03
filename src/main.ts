@@ -54,7 +54,7 @@ ui.showTitle({
       ui.renderLog();
       ui.renderTime();
       game.enterPlay();
-      canvas.requestPointerLock();
+      game.controller.lock();
     });
   },
   onContinue: saved
@@ -64,17 +64,11 @@ ui.showTitle({
           ui.renderVitals();
           ui.renderLog();
           ui.renderTime();
-          canvas.requestPointerLock();
+          game.controller.lock();
         }
       }
     : undefined,
   continueHint: saved ? describeSave(saved) : undefined,
-});
-
-canvas.addEventListener('click', () => {
-  if (game.phase === 'playing' && document.pointerLockElement !== canvas) {
-    canvas.requestPointerLock();
-  }
 });
 
 renderer.onFrame((dt) => {

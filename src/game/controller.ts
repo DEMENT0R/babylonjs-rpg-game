@@ -11,20 +11,32 @@ export interface ControllerHost {
 
 const WALK = 2.7;
 const RUN = 4.6;
-const SENSITIVITY = 0.0021;
+/** Чувствительность мыши: радианы на пиксель — как в классических шутерах (≈0,115°/px). */
+const SENSITIVITY = 0.002;
+/** Наклон головы ограничен чуть раньше зенита, иначе камера переворачивается. */
+const MAX_PITCH = Math.PI / 2 - 0.01;
+/** Скачок больше этого — не движение мыши, а мусор после захвата курсора. */
+const MAX_MOUSE_STEP = 500;
+
+function clampStep(delta: number): number {
+  if (delta > MAX_MOUSE_STEP) return MAX_MOUSE_STEP;
+  if (delta < -MAX_MOUSE_STEP) return -MAX_MOUSE_STEP;
+  return delta;
+}
 
 /** Первое лицо: мышь, WASD, скольжение вдоль стен, подъём по лестнице. */
 export class FirstPersonController {
   position = new Vector3(0, 0, 0);
   yaw = 0;
   pitch = 0;
-  enabled = true;
+  enabled = false;
 
   private keys = new Set<string>();
   private bobPhase = 0;
   private bobAmount = 0;
   private currentFloor = 0;
   private stepAccum = 0;
+  private skipNextMove = false;
 
   onStep: (() => void) | null = null;
   onInteract: (() => void) | null = null;
@@ -47,15 +59,52 @@ export class FirstPersonController {
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
 
-    this.canvas.addEventListener('click', () => {
-      if (this.enabled && !this.host.isLocked()) this.canvas.requestPointerLock();
+    this.canvas.addEventListener('click', () => this.lock());
+
+    // первый mousemove после захвата курсора иногда приходит с мусорным смещением
+    document.addEventListener('pointerlockchange', () => {
+      this.skipNextMove = this.locked;
+      if (!this.locked) this.keys.clear();
     });
+
     document.addEventListener('mousemove', (e) => {
-      if (!this.host.isLocked() || !this.enabled) return;
-      this.yaw -= e.movementX * SENSITIVITY;
-      this.pitch -= e.movementY * SENSITIVITY;
-      this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch));
+      if (!this.locked || !this.enabled) return;
+      if (this.skipNextMove) {
+        this.skipNextMove = false;
+        return;
+      }
+
+      // стандартный обзор: мышь вправо — смотрим вправо, мышь вниз — смотрим вниз
+      this.yaw += clampStep(e.movementX) * SENSITIVITY;
+      this.pitch += clampStep(e.movementY) * SENSITIVITY;
+      this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch));
     });
+  }
+
+  /** Захватить курсор: без этого мышь не обзор, а обычный указатель. */
+  lock(): void {
+    if (!this.enabled || this.locked) return;
+
+    const request = this.canvas.requestPointerLock as (
+      options?: PointerLockOptions,
+    ) => Promise<void> | void;
+
+    const fallback = (): void => {
+      try {
+        const plain = this.canvas.requestPointerLock();
+        if (plain && typeof plain.catch === 'function') plain.catch(() => {});
+      } catch {
+        /* браузер отказал — остаёмся с обычным курсором */
+      }
+    };
+
+    try {
+      // unadjustedMovement отключает ускорение мыши из ОС
+      const raw = request.call(this.canvas, { unadjustedMovement: true });
+      if (raw && typeof raw.catch === 'function') raw.catch(fallback);
+    } catch {
+      fallback();
+    }
   }
 
   teleport(x: number, y: number, z: number, yaw: number): void {
