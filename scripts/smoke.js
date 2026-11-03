@@ -67,10 +67,9 @@
   }
 
   transcript.push('после боя: ' + g.phase + ' | hp ' + Math.round(g.player.vitals.state.health));
-  await wait(400);
-  click('.title-screen__go');
   await wait(300);
-  transcript.push('финал: ' + g.phase + ' | оверлей ' + document.querySelectorAll('.finale').length);
+  await step('магазин.выход', () => sc.handle(spot('shop.exit')));
+  transcript.push('финал: ' + g.phase + ' | финальный экран ' + document.querySelectorAll('.finale').length);
 
   return transcript.join('\n');
 })()
