@@ -129,15 +129,12 @@ export class TextureLibrary {
   /** Стена подъезда: тёмный низ, светлый верх, бордюр. */
   stairWall(u = 1, v = 1): Texture {
     return this.make('stairwall', 256, 256, (ctx, w, h, rng) => {
-      ctx.fillStyle = '#8b8d84';
+      ctx.fillStyle = '#8a8e85';
       ctx.fillRect(0, 0, w, h);
-      noise(ctx, w, h, rng, 0.07, 5000);
-      // нижняя панель
-      ctx.fillStyle = '#3f5049';
-      ctx.fillRect(0, h * 0.62, w, h * 0.38);
-      noise(ctx, w, h * 0.38, rng, 0.12, 3000);
-      ctx.fillStyle = 'rgba(32,38,34,0.9)';
-      ctx.fillRect(0, h * 0.62, w, 6);
+      noise(ctx, w, h, rng, 0.09, 8000);
+      // бордюр на уровне перил, без двухцветной панели
+      ctx.fillStyle = 'rgba(96,110,101,0.4)';
+      ctx.fillRect(0, h * 0.88, w, 5);
       stains(ctx, w, h, rng, 12, 'rgba(24,28,26,0.18)');
       // потёки от побелки
       for (let i = 0; i < 20; i++) {
@@ -185,11 +182,11 @@ export class TextureLibrary {
     return this.make('snow', 256, 256, (ctx, w, h, rng) => {
       ctx.fillStyle = '#b9c2cb';
       ctx.fillRect(0, 0, w, h);
-      noise(ctx, w, h, rng, 0.07, 9000);
+      noise(ctx, w, h, rng, 0.12, 26000);
       // проталины и следы
-      for (let i = 0; i < 24; i++) {
-        const g = ctx.createRadialGradient(rng() * w, rng() * h, 2, rng() * w, rng() * h, 20 + rng() * 40);
-        g.addColorStop(0, 'rgba(70,76,82,0.18)');
+      for (let i = 0; i < 9; i++) {
+        const g = ctx.createRadialGradient(rng() * w, rng() * h, 8, rng() * w, rng() * h, 30 + rng() * 50);
+        g.addColorStop(0, 'rgba(70,76,82,0.07)');
         g.addColorStop(1, 'rgba(70,76,82,0)');
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, w, h);

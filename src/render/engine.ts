@@ -47,7 +47,7 @@ export class Renderer {
     ip.toneMappingEnabled = true;
     ip.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES;
     ip.contrast = 1.26;
-    ip.exposure = 1.18;
+    ip.exposure = 1.45;
     ip.vignetteEnabled = true;
     ip.vignetteWeight = 5.5;
     ip.vignetteStretch = 0.4;

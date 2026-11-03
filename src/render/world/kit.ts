@@ -49,7 +49,7 @@ export class Kit {
         m.diffuseColor = new Color3(0.72, 0.74, 0.76);
         break;
       case 'concreteDark':
-        m.diffuseTexture = this.tex.concrete(2, 2);
+        m.diffuseTexture = this.tex.concrete(3, 3);
         m.diffuseColor = new Color3(0.4, 0.42, 0.45);
         break;
       case 'stair':
@@ -58,7 +58,7 @@ export class Kit {
         break;
       case 'wallpaper':
         m.diffuseTexture = this.tex.wallpaper(6, 3);
-        m.diffuseColor = new Color3(0.82, 0.8, 0.76);
+        m.diffuseColor = new Color3(0.66, 0.63, 0.58);
         break;
       case 'linoleum':
         m.diffuseTexture = this.tex.linoleum(6, 6);
@@ -69,16 +69,16 @@ export class Kit {
         m.diffuseColor = new Color3(0.8, 0.82, 0.84);
         break;
       case 'wood':
-        m.diffuseTexture = this.tex.wood(1, 1);
+        m.diffuseTexture = this.tex.wood(3, 3);
         m.diffuseColor = new Color3(0.75, 0.7, 0.64);
         break;
       case 'metal':
-        m.diffuseTexture = this.tex.metal(1, 1);
+        m.diffuseTexture = this.tex.metal(4, 4);
         m.diffuseColor = new Color3(0.7, 0.72, 0.75);
         m.specularColor = new Color3(0.16, 0.17, 0.18);
         break;
       case 'door':
-        m.diffuseTexture = this.tex.door(1, 1);
+        m.diffuseTexture = this.tex.door(1, 2);
         m.diffuseColor = new Color3(0.8, 0.76, 0.72);
         break;
       case 'snow':
@@ -129,7 +129,8 @@ export class Kit {
     const m = new StandardMaterial(key, this.scene);
     m.diffuseTexture = this.tex.facade(seed, Math.max(1, w / 12), Math.max(1, h / 12));
     m.specularColor = new Color3(0.03, 0.03, 0.04);
-    m.ambientColor = new Color3(0.32, 0.34, 0.37);
+    m.diffuseColor = new Color3(0.86, 0.87, 0.9);
+    m.ambientColor = new Color3(0.34, 0.36, 0.39);
     this.mats.set(key, m);
     return m;
   }

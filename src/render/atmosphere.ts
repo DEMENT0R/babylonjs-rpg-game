@@ -18,7 +18,7 @@ export class Atmosphere {
 
   constructor(private scene: Scene, tex: TextureLibrary) {
     scene.clearColor.set(0.6, 0.64, 0.69, 1);
-    scene.ambientColor = new Color3(0.22, 0.25, 0.29);
+    scene.ambientColor = new Color3(0.34, 0.37, 0.41);
 
     scene.fogMode = Scene.FOGMODE_EXP2;
     scene.fogDensity = 0.023;
@@ -34,6 +34,13 @@ export class Atmosphere {
     sun.intensity = 0.32;
     sun.diffuse = new Color3(0.72, 0.78, 0.85);
     sun.specular = new Color3(0.1, 0.12, 0.14);
+
+    // «отражённый» свет: без него потолки в комнатах чёрные
+    const bounce = new HemisphericLight('bounce', new Vector3(0, -1, 0), scene);
+    bounce.intensity = 0.42;
+    bounce.diffuse = new Color3(0.5, 0.47, 0.43);
+    bounce.groundColor = new Color3(0.02, 0.02, 0.02);
+    bounce.specular = new Color3(0, 0, 0);
 
     // Небо: купол без солнца, просто градиент от свинца к снегу.
     const dome = MeshBuilder.CreateSphere('sky-dome', { diameter: 400, segments: 24, sideOrientation: Mesh.BACKSIDE }, scene);
