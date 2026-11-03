@@ -6,6 +6,7 @@ import { TextureLibrary } from './render/textures';
 import { Game } from './game/game';
 import { UI } from './ui/ui';
 import { Scenario } from './content/scenario';
+import { Sound } from './audio/sound';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvas) throw new Error('Нет canvas');
@@ -16,6 +17,12 @@ const atmosphere = new Atmosphere(renderer.scene, textures);
 const game = new Game(renderer, atmosphere);
 const ui = new UI(game);
 const scenario = new Scenario(game, ui);
+const sound = new Sound();
+game.sfx = sound;
+
+document.addEventListener('click', (e) => {
+  if ((e.target as HTMLElement | null)?.closest('button')) sound.ui();
+});
 
 game.events = {
   onLog: () => ui.renderLog(),
@@ -33,6 +40,7 @@ game.controller.onInteract = () => {
 };
 
 ui.showTitle(() => {
+  sound.init();
   ui.showClassSelect((character) => {
     ui.closeOverlay();
     game.startNew(character.id);

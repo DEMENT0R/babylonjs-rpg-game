@@ -158,6 +158,7 @@ export class Combat {
     const weapon = p.inventory.bestWeapon()?.name ?? 'кулак';
     this.lines.push(`${weapon}: попадание. ${dmg} урона.`);
     this.game.renderer.shake(0.03);
+    this.game.sfx?.strike();
     if (this.enemyHp <= 0) this.finish('win');
   }
 
@@ -178,6 +179,7 @@ export class Combat {
         this.game.player?.vitals.damage(dmg);
         this.lines.push(`${this.enemy.name} бьёт. ${dmg} урона.`);
         this.game.renderer.shake(0.06);
+        this.game.sfx?.hurt();
         if (this.playerHealth <= 0) {
           this.finish('lose');
           return;

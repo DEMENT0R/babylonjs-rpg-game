@@ -18,6 +18,15 @@ import { FirstPersonController } from './controller';
 
 export type GamePhase = 'title' | 'playing' | 'dialogue' | 'combat' | 'dead' | 'ending';
 
+/** Звук подключается снаружи, чтобы симуляция о нём не знала. */
+export interface Sfx {
+  setOutdoor(outdoor: boolean): void;
+  step(surface: 'snow' | 'floor' | 'stairs'): void;
+  strike(): void;
+  hurt(): void;
+  ui(): void;
+}
+
 export interface GameEvents {
   onLog(): void;
   onVitals(): void;
@@ -42,6 +51,7 @@ export class Game {
   phase: GamePhase = 'title';
   flags: Record<string, number | boolean | string> = {};
   events!: GameEvents;
+  sfx: Sfx | null = null;
 
   private currentLevelId = 'flat';
   private minuteAccumulator = 0;
@@ -118,6 +128,7 @@ export class Game {
     this.controller.teleport(spawn.x, Math.max(0, spawn.y), spawn.z, spawn.yaw);
     this.atmosphere.setInterior(level.outdoors ? 1 : 0.72);
     this.atmosphere.setIntensity(level.outdoors ? 1 : 0.35);
+    this.sfx?.setOutdoor(level.outdoors);
     if (!opts.silent) this.log.info(`— ${level.title} —`, this.clock.label);
     this.events.onVitals();
     this.events.onTime();
@@ -269,7 +280,8 @@ export class Game {
   }
 
   private onFootstep(): void {
-    // задел под звук: шаг по снегу звучит иначе, чем по линолеуму
+    const surface = this.level.outdoors ? 'snow' : this.level.id === 'stairwell' ? 'stairs' : 'floor';
+    this.sfx?.step(surface);
   }
 
   setPhaseExternal(phase: GamePhase): void {
