@@ -1,8 +1,10 @@
 import { CHARACTERS, STAT_LABELS, type CharacterDef } from '../content/classes';
+import { CURRENT_VERSION, hasUnseenChanges } from '../content/changelog';
 import { formatTemperature } from '../core/clock';
 import { item } from '../core/items';
 import type { Game, GamePhase } from '../game/game';
 import type { Spot } from '../render/world/level';
+import { renderChangelog } from './changelog';
 
 export interface DialogueOption {
   id: string;
@@ -15,6 +17,12 @@ export interface DialogueView {
   who: string;
   text: string;
   options: DialogueOption[];
+}
+
+export interface TitleScreenOptions {
+  onStart: () => void;
+  onContinue?: () => void;
+  continueHint?: string;
 }
 
 const BARS: Array<{ key: 'health' | 'warmth' | 'hunger' | 'thirst' | 'sanity' | 'energy'; label: string; low: number }> = [
@@ -150,7 +158,7 @@ export class UI {
     this.overlay.style.pointerEvents = 'none';
   }
 
-  showTitle(opts: { onStart: () => void; onContinue?: () => void; continueHint?: string }): void {
+  showTitle(opts: TitleScreenOptions): void {
     this.clearOverlay();
     this.overlay.style.pointerEvents = 'auto';
     const screen = el('div', 'title-screen');
@@ -176,8 +184,26 @@ export class UI {
     go.addEventListener('click', opts.onStart);
     buttons.appendChild(go);
 
-    screen.append(title, sub, buttons);
+    // версия и история изменений: тот же CHANGELOG.md, что лежит в репозитории
+    const unseen = hasUnseenChanges();
+    const foot = el('div', 'title-screen__foot');
+    const version = el('span', 'title-screen__version mono');
+    version.textContent = `v${CURRENT_VERSION}`;
+    const changelog = el('button', 'changelog-link');
+    changelog.textContent = unseen ? 'что нового' : 'история изменений';
+    if (unseen) changelog.classList.add('changelog-link--new');
+    changelog.addEventListener('click', () => this.showChangelog(() => this.showTitle(opts)));
+    foot.append(version, changelog);
+
+    screen.append(title, sub, buttons, foot);
     this.overlay.appendChild(screen);
+  }
+
+  /** Экран истории изменений; `back` возвращает туда, откуда его открыли. */
+  showChangelog(back: () => void): void {
+    this.clearOverlay();
+    this.overlay.style.pointerEvents = 'auto';
+    this.overlayCleanup = renderChangelog(this.overlay, { onBack: back });
   }
 
   showClassSelect(onPick: (c: CharacterDef) => void): void {
@@ -331,7 +357,16 @@ export class UI {
     const again = el('button', 'title-screen__go');
     again.textContent = 'ещё раз';
     again.addEventListener('click', onRestart);
-    wrap.append(title, text, stats, again);
+
+    const foot = el('div', 'finale__foot');
+    const changelog = el('button', 'changelog-link');
+    changelog.textContent = 'история изменений';
+    changelog.addEventListener('click', () =>
+      this.showChangelog(() => this.showFinale(titleText, body, onRestart)),
+    );
+    foot.appendChild(changelog);
+
+    wrap.append(title, text, stats, again, foot);
     this.overlay.appendChild(wrap);
   }
 

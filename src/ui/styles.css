@@ -89,6 +89,7 @@ body {
   gap: 2.4rem;
   text-align: center;
   pointer-events: auto;
+  padding: 6vh 2rem 7rem;
   background: radial-gradient(circle at 50% 40%, rgba(8, 9, 12, 0.2), rgba(4, 5, 7, 0.9) 75%);
 }
 
@@ -653,6 +654,255 @@ body {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: #767d86;
+}
+
+.finale__foot {
+  display: flex;
+  justify-content: center;
+}
+
+/* ————— история изменений ————— */
+
+.title-screen__foot {
+  position: absolute;
+  left: 50%;
+  bottom: 2.2rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  white-space: nowrap;
+}
+
+.title-screen__version {
+  font-size: 0.58rem;
+  letter-spacing: 0.22em;
+  color: #5f666e;
+}
+
+.changelog-link {
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #8b9199;
+  border-bottom: 1px solid rgba(215, 210, 200, 0.22);
+  padding-bottom: 2px;
+  transition: color 160ms, border-color 160ms;
+}
+
+/* #ui button задаёт font: inherit, поэтому размер задаём селектором посильнее */
+#ui .changelog-link {
+  font-size: 0.62rem;
+}
+
+#ui .clog__close {
+  font-size: 0.62rem;
+}
+
+.changelog-link:hover {
+  color: #e6e2da;
+  border-color: rgba(215, 210, 200, 0.55);
+}
+
+.changelog-link--new {
+  color: var(--warm);
+  border-color: rgba(201, 162, 39, 0.5);
+}
+
+.changelog-link--new::before {
+  content: '●';
+  font-size: 0.55em;
+  vertical-align: 0.25em;
+  margin-right: 0.5em;
+}
+
+.clog {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  padding: 4vh 4vw;
+  background: radial-gradient(circle at 50% 30%, rgba(10, 12, 15, 0.88), rgba(4, 5, 7, 0.96));
+}
+
+.clog__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(52rem, 94vw);
+  max-height: min(86vh, 48rem);
+  min-height: 0;
+  border: 1px solid var(--line);
+  background: #0a0c0f;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+.clog__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.2rem;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.clog__title {
+  font-size: 0.78rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+.clog__sub {
+  margin-top: 0.35rem;
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6c737c;
+}
+
+.clog__close {
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #b3a888;
+  border-bottom: 1px solid rgba(179, 168, 136, 0.35);
+  padding-bottom: 1px;
+}
+
+.clog__close:hover {
+  color: #e2d7b6;
+}
+
+.clog__body {
+  min-height: 0;
+  overflow: auto;
+  padding: 1.3rem 1.6rem 1.8rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(215, 210, 200, 0.22) transparent;
+}
+
+.clog__entry {
+  padding-bottom: 1.4rem;
+  border-bottom: 1px solid rgba(215, 210, 200, 0.08);
+}
+
+.clog__entry + .clog__entry {
+  padding-top: 1.4rem;
+}
+
+.clog__entry:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.clog__entry-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.clog__version {
+  font-size: 1rem;
+  letter-spacing: 0.16em;
+  color: #dcd8cf;
+}
+
+.clog__entry--soon .clog__version {
+  color: #9b9182;
+}
+
+.clog__date {
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
+  color: #6c737c;
+}
+
+.clog__badge {
+  font-size: 0.52rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #8b9199;
+  border: 1px solid rgba(215, 210, 200, 0.25);
+  padding: 0.12rem 0.45rem;
+}
+
+.clog__entry--current .clog__badge {
+  color: #c9b98d;
+  border-color: rgba(201, 185, 141, 0.45);
+}
+
+.clog__entry--soon .clog__badge {
+  color: var(--warm);
+  border-color: rgba(201, 162, 39, 0.45);
+}
+
+.clog__lead {
+  margin: 0.6rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  font-style: italic;
+  color: #a9aeb5;
+}
+
+.clog__section {
+  margin-top: 1rem;
+}
+
+.clog__sec-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.56rem;
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #9b9182;
+}
+
+.clog__group {
+  margin: 0.7rem 0 0.3rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: #d0c4a4;
+}
+
+.clog__list {
+  margin: 0;
+  padding: 0 0 0 0.95rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.clog__item {
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #b6bbc2;
+}
+
+.clog__item::marker {
+  color: #5f666e;
+}
+
+.clog__item code,
+.clog__lead code {
+  font-size: 0.92em;
+  color: #c9b98d;
+}
+
+.clog__link {
+  color: #a9b8a2;
+  border-bottom: 1px dotted rgba(169, 184, 162, 0.4);
+}
+
+@media (max-width: 640px) {
+  .clog {
+    padding: 2vh 2vw;
+  }
+
+  .clog__head {
+    padding: 1rem;
+  }
+
+  .clog__body {
+    padding: 1rem 1rem 1.4rem;
+  }
 }
 
 /* ————— служебное ————— */
