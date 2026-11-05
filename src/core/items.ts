@@ -1,6 +1,6 @@
 /** Каталог предметов. Всё, что можно поднять, — с весом, пользой и ценой. */
 
-export type ItemCategory = 'wear' | 'food' | 'med' | 'light' | 'tool' | 'weapon' | 'misc';
+export type ItemCategory = 'wear' | 'food' | 'med' | 'light' | 'tool' | 'weapon' | 'fuel' | 'misc';
 export type EquipSlot = 'outer' | 'head' | 'hands' | 'feet' | 'back';
 export type ItemVerb = 'съесть' | 'выпить' | 'надеть' | 'использовать' | 'зажечь' | 'прочитать';
 
@@ -34,6 +34,8 @@ export interface ItemDef {
   use?: ItemUse;
   verb?: ItemVerb;
   combat?: CombatProfile;
+  /** Сколько часов горит в печи. Топливо — единственный способ согреть дом. */
+  fuel?: number;
   /** Полезно для сюжета или как валюта. */
   valuable?: number;
   once?: boolean;
@@ -244,6 +246,17 @@ const catalog: ItemDef[] = [
     use: { health: 38 },
     verb: 'использовать',
     valuable: 5,
+  },
+
+  // — топливо —
+  {
+    id: 'wood',
+    name: 'Дрова',
+    desc: 'Охапка поленьев от разобранного поддона. Пахнут смолой и снегом.',
+    weight: 2.6,
+    category: 'fuel',
+    stackable: true,
+    fuel: 4,
   },
 
   // — свет и огонь —
