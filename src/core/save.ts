@@ -3,6 +3,7 @@ import type { InventorySnapshot } from './inventory';
 import type { VitalsState } from './vitals';
 import type { HeatSnapshot } from './heat';
 
+// Ключ остался от прежнего названия игры: смена стёрла бы уже сохранённые забеги.
 export const SAVE_KEY = 'panel.zone.save.v1';
 
 /** 1 — первый выпуск: без тепла квартиры. 2 — топка и остывающий дом. */

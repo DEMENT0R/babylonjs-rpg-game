@@ -163,7 +163,7 @@ export class UI {
     this.overlay.style.pointerEvents = 'auto';
     const screen = el('div', 'title-screen');
     const title = el('div', 'title-serif');
-    title.textContent = 'ПАНЕЛЬ';
+    title.innerHTML = 'МИНУС<br />ДВАДЦАТЬ<br />СЕМЬ';
     const sub = el('div', 'title-screen__sub');
     sub.innerHTML = 'два дня<br />ядерная зима, панельный район';
 
