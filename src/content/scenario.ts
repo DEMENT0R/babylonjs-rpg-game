@@ -205,7 +205,8 @@ export class Scenario {
     g.travelTo('stairwell', { spawnAt: 'stair.flat-door' });
     if (!g.getFlag('seen.stair')) {
       g.setFlag('seen.stair');
-      g.say('Подъезд гулкий и синий от света с лестницы. Где-то наверху капает.');
+      g.say('Подъезд гулкий и синий от света с лестницы. Где-то ниже капает вода.');
+      g.say('На третьем этаже кто-то кашляет и чертыхается.');
     }
   }
 

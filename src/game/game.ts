@@ -122,11 +122,13 @@ export class Game {
     if (opts.spawnAt) {
       const spot = level.spots.find((s) => s.id === opts.spawnAt);
       if (spot) {
-        spawn = { x: spot.position[0], y: level.spawn.y, z: spot.position[2], yaw: level.spawn.yaw };
+        spawn = { x: spot.position[0], y: spot.position[1], z: spot.position[2], yaw: level.spawn.yaw };
       }
     }
-    // высоту берём у пола под точкой выхода, а не у самой точки
-    const floorY = floorHeightAt(spawn.x, spawn.z, level.col, level.spawn.y);
+    // Высоту берём у пола под точкой выхода, а не у самой точки. Точка стоит
+    // на высоте глаз, поэтому ищем ближайший пол к её y — иначе на девятом
+    // этаже подъезда сработал бы первый.
+    const floorY = floorHeightAt(spawn.x, spawn.z, level.col, spawn.y);
     this.controller.teleport(spawn.x, floorY, spawn.z, spawn.yaw);
     this.applyLevelAtmosphere();
     if (!opts.silent) this.log.info(`— ${level.title} —`, this.clock.label);

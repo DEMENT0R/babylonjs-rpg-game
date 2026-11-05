@@ -6,7 +6,7 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import type { Scene } from '@babylonjs/core/scene';
-import type { TextureLibrary } from '../textures';
+import type { PanelPalette, TextureLibrary } from '../textures';
 import { emptyCollision, type LevelCollision } from '../collision';
 
 export type MatKind =
@@ -121,16 +121,25 @@ export class Kit {
     return m;
   }
 
-  /** Материал фасада с точным тайлингом под размер стены. */
-  facade(seed: number, w: number, h: number): StandardMaterial {
-    const key = `facade:${seed}:${Math.round(w)}:${Math.round(h)}`;
+  /**
+   * Материал фасада под конкретный дом: текстура содержит ровно столько
+   * секций и этажей, сколько у дома, и не тайлится — окна не «плывут».
+   */
+  panelFacade(
+    seed: number,
+    sections: number,
+    floors: number,
+    floorHeight: number,
+    palette: PanelPalette,
+  ): StandardMaterial {
+    const key = `panel:${seed}:${sections}:${floors}:${floorHeight}:${palette.id}`;
     const hit = this.mats.get(key);
     if (hit) return hit;
     const m = new StandardMaterial(key, this.scene);
-    m.diffuseTexture = this.tex.facade(seed, Math.max(1, w / 12), Math.max(1, h / 12));
+    m.diffuseTexture = this.tex.panel(seed, sections, floors, floorHeight, palette);
     m.specularColor = new Color3(0.03, 0.03, 0.04);
-    m.diffuseColor = new Color3(0.86, 0.87, 0.9);
-    m.ambientColor = new Color3(0.34, 0.36, 0.39);
+    m.diffuseColor = new Color3(1, 1, 1);
+    m.ambientColor = new Color3(0.36, 0.38, 0.41);
     this.mats.set(key, m);
     return m;
   }
@@ -350,5 +359,7 @@ export class LevelBuilder {
     light.specular = color;
     light.intensity = intensity;
     light.range = range;
+    // Свет принадлежит локации: выключенный уровень не должен светить в чужой.
+    light.parent = this.root;
   }
 }

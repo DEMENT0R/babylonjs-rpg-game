@@ -145,7 +145,7 @@ export class FirstPersonController {
     }
 
     if (dx !== 0 || dz !== 0) {
-      const next = slideMove(this.position, dx, dz, col, PLAYER_RADIUS);
+      const next = slideMove(this.position, dx, dz, col, PLAYER_RADIUS, this.position.y);
       const moved = Math.hypot(next.x - this.position.x, next.z - this.position.z);
       this.position.x = next.x;
       this.position.z = next.z;

@@ -7,6 +7,12 @@ export interface Rect2 {
   z1: number;
 }
 
+/** Стена может занимать только часть высоты — например, перила на площадке. */
+export interface WallRect extends Rect2 {
+  y0?: number;
+  y1?: number;
+}
+
 export interface FloorRect extends Rect2 {
   y: number;
 }
@@ -18,19 +24,31 @@ export interface RampRect extends Rect2 {
 }
 
 export interface LevelCollision {
-  walls: Rect2[];
+  walls: WallRect[];
   floors: FloorRect[];
   ramps: RampRect[];
 }
 
 export const PLAYER_RADIUS = 0.3;
 export const EYE_HEIGHT = 1.62;
+const BODY_HEIGHT = 1.8;
 
 export function emptyCollision(): LevelCollision {
   return { walls: [], floors: [], ramps: [] };
 }
 
-function pushOut(x: number, z: number, rect: Rect2, radius: number): { x: number; z: number } | null {
+function pushOut(
+  x: number,
+  z: number,
+  rect: WallRect,
+  radius: number,
+  feetY: number,
+): { x: number; z: number } | null {
+  // Перила и ограждения действуют только на своей высоте.
+  if (rect.y0 !== undefined && rect.y1 !== undefined) {
+    if (feetY > rect.y1 || feetY + BODY_HEIGHT < rect.y0) return null;
+  }
+
   const ex0 = rect.x0 - radius;
   const ex1 = rect.x1 + radius;
   const ez0 = rect.z0 - radius;
@@ -55,13 +73,14 @@ export function resolvePosition(
   z: number,
   col: LevelCollision,
   radius = PLAYER_RADIUS,
+  feetY = 0,
 ): { x: number; z: number } {
   let px = x;
   let pz = z;
   for (let pass = 0; pass < 3; pass++) {
     let moved = false;
     for (const wall of col.walls) {
-      const res = pushOut(px, pz, wall, radius);
+      const res = pushOut(px, pz, wall, radius, feetY);
       if (res) {
         px = res.x;
         pz = res.z;
@@ -98,16 +117,23 @@ export function floorHeightAt(
     }
   }
   if (found) return best;
+  // Марши этажей стоят друг над другом: берём тот, что ближе к текущей высоте.
+  let rampY = fallback;
+  let rampFound = false;
   for (const r of col.ramps) {
     if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) {
       const t =
         r.axis === 'x'
           ? (x - r.x0) / Math.max(r.x1 - r.x0, 0.0001)
           : (z - r.z0) / Math.max(r.z1 - r.z0, 0.0001);
-      return r.y0 + (r.y1 - r.y0) * Math.min(Math.max(t, 0), 1);
+      const y = r.y0 + (r.y1 - r.y0) * Math.min(Math.max(t, 0), 1);
+      if (!rampFound || Math.abs(y - fallback) < Math.abs(rampY - fallback)) {
+        rampY = y;
+        rampFound = true;
+      }
     }
   }
-  return best;
+  return rampFound ? rampY : best;
 }
 
 export interface MoveResult {
@@ -122,15 +148,16 @@ export function slideMove(
   dz: number,
   col: LevelCollision,
   radius = PLAYER_RADIUS,
+  feetY = 0,
 ): { x: number; z: number } {
-  const full = resolvePosition(pos.x + dx, pos.z + dz, col, radius);
+  const full = resolvePosition(pos.x + dx, pos.z + dz, col, radius, feetY);
   const movedX = Math.abs(full.x - pos.x);
   const movedZ = Math.abs(full.z - pos.z);
 
   if (movedX < Math.abs(dx) * 0.5 || movedZ < Math.abs(dz) * 0.5) {
     // упёрлись — пробуем оси отдельно, чтобы не залипать в углах
-    const onlyX = resolvePosition(pos.x + dx, pos.z, col, radius);
-    const onlyZ = resolvePosition(pos.x, pos.z + dz, col, radius);
+    const onlyX = resolvePosition(pos.x + dx, pos.z, col, radius, feetY);
+    const onlyZ = resolvePosition(pos.x, pos.z + dz, col, radius, feetY);
     const cX = Math.abs(onlyX.x - pos.x) + Math.abs(onlyX.z - pos.z);
     const cZ = Math.abs(onlyZ.x - pos.x) + Math.abs(onlyZ.z - pos.z);
     return cX > cZ ? onlyX : onlyZ;

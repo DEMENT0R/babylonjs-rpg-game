@@ -3,11 +3,12 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import { LevelBuilder, Kit } from './kit';
+import { PANEL_SERIES, panelHouse } from './panel';
 import type { Level } from './level';
 
 /**
- * Двор. Панелька на девять этажей, снег по колено, детская площадка
- * под сугробом и одна работающая лампа из пяти.
+ * Двор. Четыре типовые панельки: пятиэтажка, семиэтажка и две девятиэтажки.
+ * Снег по колено, детская площадка под сугробом и одна работающая лампа из пяти.
  */
 export function buildStreet(scene: Scene, kit: Kit): Level {
   const b = new LevelBuilder(scene, kit, 'street');
@@ -18,13 +19,45 @@ export function buildStreet(scene: Scene, kit: Kit): Level {
   b.box('road', [70, 0.03, 7], [-2, 0.015, 19], 'asphalt');
   b.box('road-mark', [70, 0.01, 0.2], [-2, 0.03, 19], 'concrete');
 
-  // — дома —
-  panelBlock(b, kit, -26, -30, -8, -12, 27, 11);
-  panelBlock(b, kit, 8, -30, 26, -12, 27, 17);
-  panelBlock(b, kit, 26, -14, 44, 4, 21, 23);
-  // наш подъезд — посередине
-  panelBlock(b, kit, -8, -30, 8, -12, 27, 5);
-  porch(b, kit);
+  // — дома: типовые серии, 5–9 этажей, окна и балконы этаж в этаж —
+  // пятиэтажка слева, отступает от красной линии
+  panelHouse(b, kit, {
+    series: PANEL_SERIES['1-464'],
+    sections: 2,
+    seed: 11,
+    x: -30,
+    z: -19.5,
+    balconies: true,
+  });
+  // наш подъезд — девятиэтажка посередине; дверь ровно на оси x = 0
+  panelHouse(b, kit, {
+    series: PANEL_SERIES['1-515'],
+    sections: 3,
+    seed: 5,
+    x: 0,
+    z: -18,
+    balconies: true,
+  });
+  // семиэтажка справа
+  panelHouse(b, kit, {
+    series: PANEL_SERIES['panel-7'],
+    sections: 2,
+    seed: 17,
+    x: 30,
+    z: -18.8,
+    balconies: true,
+  });
+  // девятиэтажка в глубине двора, торцом к магазину
+  panelHouse(b, kit, {
+    series: PANEL_SERIES['1-515'],
+    sections: 2,
+    seed: 23,
+    x: 36,
+    z: 4,
+    yaw: -Math.PI / 2,
+    balconies: true,
+  });
+  noticeBoard(b);
 
   // — магазин —
   shopShell(b, kit, 16, 4, 28, 16, 4.5);
@@ -71,7 +104,7 @@ export function buildStreet(scene: Scene, kit: Kit): Level {
     spots: [
       { id: 'street.stair-door', position: [0, 1.0, -10.6], radius: 1.6, label: 'Подъезд', kind: 'door', target: 'stairwell' },
       { id: 'street.shop-door', position: [15.4, 1.0, 10], radius: 1.7, label: 'Магазин', kind: 'door', target: 'shop' },
-      { id: 'street.notice', position: [-2.6, 1.6, -11.7], radius: 1.3, label: 'Объявление у подъезда', kind: 'examine' },
+      { id: 'street.notice', position: [-3.05, 1.6, -11.7], radius: 1.3, label: 'Объявление у подъезда', kind: 'examine' },
       { id: 'street.bins', position: [12, 0.6, -6], radius: 1.6, label: 'Мусорные баки', kind: 'loot' },
       { id: 'street.car1', position: [-6.5, 0.8, -7.4], radius: 2.0, label: 'Машина', kind: 'loot' },
       { id: 'street.car2', position: [4.8, 0.8, -7.0], radius: 2.0, label: 'Машина', kind: 'loot' },
@@ -82,38 +115,9 @@ export function buildStreet(scene: Scene, kit: Kit): Level {
   };
 }
 
-/** Один корпус панельки: коробка с фасадом и глухим коллайдером. */
-function panelBlock(
-  b: LevelBuilder,
-  kit: Kit,
-  x0: number,
-  z0: number,
-  x1: number,
-  z1: number,
-  h: number,
-  seed: number,
-): void {
-  const w = x1 - x0;
-  const d = z1 - z0;
-  const mat = kit.facade(seed, w, h);
-  b.box('block', [w, h, d], [(x0 + x1) / 2, h / 2, (z0 + z1) / 2], undefined, { material: mat });
-  // крыша чуть темнее
-  b.box('roof', [w + 0.4, 0.4, d + 0.4], [(x0 + x1) / 2, h + 0.2, (z0 + z1) / 2], 'concreteDark');
-  b.col.walls.push({ x0, z0, x1, z1 });
-}
-
-/** Козырёк и дверь нашего подъезда. */
-function porch(b: LevelBuilder, kit: Kit): void {
-  const y = 2.6;
-  b.box('porch-roof', [3.4, 0.18, 1.8], [0, y, -11.1], 'concreteDark');
-  b.box('porch-col', [0.22, 2.6, 0.22], [-1.6, 1.3, -10.3], 'concreteDark');
-  b.box('porch-col', [0.22, 2.6, 0.22], [1.6, 1.3, -10.3], 'concreteDark');
-  b.box('entry-door', [1.5, 2.1, 0.1], [0, 1.05, -11.9], 'door');
-  b.box('entry-frame', [1.8, 2.3, 0.14], [0, 1.15, -11.85], 'metal');
-  b.box('step', [3.2, 0.16, 1.0], [0, 0.08, -10.9], 'concrete');
-  // объявление
-  b.box('notice', [0.7, 0.5, 0.02], [-2.4, 1.6, -11.88], 'wood');
-  void kit;
+/** Объявление на стене нашего подъезда, между окнами первого этажа. */
+function noticeBoard(b: LevelBuilder): void {
+  b.box('notice', [0.7, 0.5, 0.03], [-3.05, 1.6, -11.86], 'wood');
 }
 
 function shopShell(b: LevelBuilder, kit: Kit, x0: number, z0: number, x1: number, z1: number, h: number): void {

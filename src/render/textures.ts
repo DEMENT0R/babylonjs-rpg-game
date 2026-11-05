@@ -5,6 +5,15 @@ import { makeRng, type Rng } from '../core/rng';
 
 type Ctx = CanvasRenderingContext2D;
 
+/** Палитра серии панельки: бетон, швы, откосы и переплёты. */
+export interface PanelPalette {
+  id: string;
+  base: string;
+  seam: string;
+  sill: string;
+  frame: string;
+}
+
 /**
  * Вся графика процедурная: ни одного внешнего ассета, значит, ни одной
  * битой ссылки на GitHub Pages. Серый мир собирается из шума и краски.
@@ -48,82 +57,24 @@ export class TextureLibrary {
     }, u, v);
   }
 
-  /** Фасад панельки: 4 окна × 4 этажа в одной текстуре, дальше тайлинг. */
-  facade(seed: number, u = 1, v = 1): Texture {
-    return this.make(`facade:${seed}`, 512, 512, (ctx, w, h, rng) => {
-      const cellW = w / 4;
-      const cellH = h / 4;
-      ctx.fillStyle = '#7c7f82';
-      ctx.fillRect(0, 0, w, h);
-
-      // швы панелей
-      ctx.strokeStyle = 'rgba(38,41,44,0.55)';
-      ctx.lineWidth = 3;
-      for (let i = 0; i <= 4; i++) {
-        ctx.beginPath();
-        ctx.moveTo(0, i * cellH);
-        ctx.lineTo(w, i * cellH);
-        ctx.stroke();
-      }
-      for (let i = 0; i <= 4; i++) {
-        ctx.beginPath();
-        ctx.moveTo(i * cellW, 0);
-        ctx.lineTo(i * cellW, h);
-        ctx.stroke();
-      }
-      noise(ctx, w, h, rng, 0.10, 7000);
-      stains(ctx, w, h, rng, 18, 'rgba(30,34,38,0.14)');
-
-      // окна
-      const litChance = 0.16;
-      for (let row = 0; row < 4; row++) {
-        for (let col = 0; col < 4; col++) {
-          const ox = col * cellW;
-          const oy = row * cellH;
-          const ww = cellW * 0.52;
-          const wh = cellH * 0.46;
-          const wx = ox + (cellW - ww) / 2;
-          const wy = oy + cellH * 0.24;
-
-          // проём глубже стены
-          ctx.fillStyle = 'rgba(24,26,29,0.9)';
-          ctx.fillRect(wx - 6, wy - 6, ww + 12, wh + 12);
-
-          const lit = rng() < litChance;
-          if (lit) {
-            const g = ctx.createLinearGradient(wx, wy, wx, wy + wh);
-            g.addColorStop(0, 'rgba(198,158,96,0.92)');
-            g.addColorStop(1, 'rgba(140,104,58,0.75)');
-            ctx.fillStyle = g;
-          } else {
-            const g = ctx.createLinearGradient(wx, wy, wx + ww, wy + wh);
-            g.addColorStop(0, 'rgba(52,58,64,0.95)');
-            g.addColorStop(1, 'rgba(34,38,43,0.95)');
-            ctx.fillStyle = g;
-          }
-          ctx.fillRect(wx, wy, ww, wh);
-
-          // переплёт
-          ctx.strokeStyle = lit ? 'rgba(60,50,38,0.85)' : 'rgba(18,20,23,0.9)';
-          ctx.lineWidth = 4;
-          ctx.strokeRect(wx, wy, ww, wh);
-          ctx.beginPath();
-          ctx.moveTo(wx + ww / 2, wy);
-          ctx.lineTo(wx + ww / 2, wy + wh);
-          ctx.moveTo(wx, wy + wh * 0.42);
-          ctx.lineTo(wx + ww, wy + wh * 0.42);
-          ctx.stroke();
-
-          // подоконник и потёки
-          ctx.fillStyle = 'rgba(120,124,128,0.85)';
-          ctx.fillRect(wx - 8, wy + wh + 6, ww + 16, 5);
-          if (rng() < 0.5) {
-            ctx.fillStyle = 'rgba(28,32,36,0.15)';
-            ctx.fillRect(wx - 4, wy + wh + 11, ww + 8, 40 + rng() * 60);
-          }
-        }
-      }
-    }, u, v);
+  /**
+   * Фасад типовой панельки целиком: все секции и все этажи в одной текстуре.
+   * Окна заданы в метрах и рисуются одной и той же сеткой на каждом этаже,
+   * поэтому стоят строго друг над другом, а не «плывут» из-за тайлинга.
+   */
+  panel(
+    seed: number,
+    sections: number,
+    floors: number,
+    floorHeight: number,
+    palette: PanelPalette,
+  ): Texture {
+    const key = `panel:${seed}:${sections}:${floors}:${floorHeight}:${palette.id}`;
+    const w = Math.round(sections * PANEL_SECTION_W * PANEL_PX);
+    const h = Math.round(floors * floorHeight * PANEL_PX);
+    return this.make(key, w, h, (ctx, cw, ch, rng) => {
+      drawPanelFacade(ctx, cw, ch, rng, sections, floors, floorHeight, palette);
+    });
   }
 
   /** Стена подъезда: тёмный низ, светлый верх, бордюр. */
@@ -313,6 +264,225 @@ export class TextureLibrary {
       ctx.fillRect(0, 0, w, h);
     });
   }
+}
+
+// ————— типовая панелька —————
+
+const PANEL_SECTION_W = 12;
+/** Пикселей на метр: хватает на швы и переплёты, но текстура остаётся лёгкой. */
+const PANEL_PX = 28;
+
+interface PanelWindowDef {
+  /** Центр окна в метрах от левого края секции. */
+  cx: number;
+  w: number;
+  /** Низ окна от пола этажа. */
+  y: number;
+  h: number;
+  stair?: boolean;
+}
+
+/** Одна и та же расстановка окон на каждом этаже — это и есть типовая планировка. */
+const PANEL_WINDOWS: readonly PanelWindowDef[] = [
+  { cx: 1.55, w: 1.75, y: 0.85, h: 1.55 },
+  { cx: 4.35, w: 1.75, y: 0.85, h: 1.55 },
+  { cx: 6.0, w: 0.85, y: 1.45, h: 1.0, stair: true },
+  { cx: 7.7, w: 1.75, y: 0.85, h: 1.55 },
+  { cx: 10.45, w: 1.35, y: 0.9, h: 1.4 },
+];
+
+function drawPanelFacade(
+  ctx: Ctx,
+  w: number,
+  h: number,
+  rng: Rng,
+  sections: number,
+  floors: number,
+  floorHeight: number,
+  palette: PanelPalette,
+): void {
+  const floorPx = floorHeight * PANEL_PX;
+
+  ctx.fillStyle = palette.base;
+  ctx.fillRect(0, 0, w, h);
+
+  // Каждая комната — своя плита: тон бетона гуляет от панели к панели.
+  for (let f = 0; f < floors; f++) {
+    const yTop = h - (f + 1) * floorPx;
+    for (let c = 0; c < sections * 4; c++) {
+      const tone = rng();
+      if (tone < 0.33) {
+        ctx.fillStyle = `rgba(255,255,255,${0.015 + rng() * 0.03})`;
+      } else if (tone > 0.62) {
+        ctx.fillStyle = `rgba(0,0,0,${0.015 + rng() * 0.035})`;
+      } else {
+        continue;
+      }
+      ctx.fillRect(c * 3 * PANEL_PX, yTop, 3 * PANEL_PX, floorPx);
+    }
+  }
+
+  noise(ctx, w, h, rng, 0.08, Math.round(w * h * 0.05));
+  stains(ctx, w, h, rng, Math.max(12, Math.round(w / 26)), 'rgba(30,33,34,0.10)');
+  cracks(ctx, w, h, rng, Math.max(6, Math.round(w / 70)));
+
+  // Цоколь: тёмная бетонная полоса у земли, как у настоящей панельки.
+  ctx.fillStyle = 'rgba(46,50,52,0.55)';
+  ctx.fillRect(0, h - 0.55 * PANEL_PX, w, 0.55 * PANEL_PX);
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  ctx.fillRect(0, h - 0.55 * PANEL_PX, w, 2);
+
+  // Швы: горизонтальные — по перекрытиям, вертикальные — по граням панелей.
+  ctx.strokeStyle = palette.seam;
+  ctx.lineWidth = 3;
+  for (let f = 0; f <= floors; f++) {
+    const y = Math.round(h - f * floorPx) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  for (let s = 0; s < sections; s++) {
+    for (let c = 0; c <= 4; c++) {
+      // лестничная клетка занимает две панели — шва посередине нет
+      if (c === 2) continue;
+      if (c === 4 && s < sections - 1) continue;
+      const x = Math.round((s * PANEL_SECTION_W + c * 3) * PANEL_PX) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+  }
+
+  // Светлая фаска рядом с горизонтальным швом — чтобы читался рельеф.
+  ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+  ctx.lineWidth = 1;
+  for (let f = 0; f <= floors; f++) {
+    const y = Math.round(h - f * floorPx) + 2.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  for (let f = 0; f < floors; f++) {
+    for (let s = 0; s < sections; s++) {
+      for (const win of PANEL_WINDOWS) {
+        if (win.stair && f === 0) continue;
+        const x = (s * PANEL_SECTION_W + win.cx - win.w / 2) * PANEL_PX;
+        const y = h - (f * floorHeight + win.y + win.h) * PANEL_PX;
+        drawPanelWindow(
+          ctx,
+          x,
+          y,
+          win.w * PANEL_PX,
+          win.h * PANEL_PX,
+          palette,
+          rng,
+          Boolean(win.stair),
+        );
+      }
+      if (f === 0) {
+        drawPanelDoor(ctx, (s * PANEL_SECTION_W + 6) * PANEL_PX, h);
+      }
+    }
+  }
+}
+
+function drawPanelWindow(
+  ctx: Ctx,
+  x: number,
+  y: number,
+  ww: number,
+  wh: number,
+  palette: PanelPalette,
+  rng: Rng,
+  stair: boolean,
+): void {
+  // проём сидит глубже стены
+  ctx.fillStyle = 'rgba(20,22,24,0.9)';
+  ctx.fillRect(x - 4, y - 5, ww + 8, wh + 10);
+
+  const lit = rng() < (stair ? 0.04 : 0.17);
+  const g = ctx.createLinearGradient(x, y, x, y + wh);
+  if (lit) {
+    g.addColorStop(0, 'rgba(205,166,104,0.95)');
+    g.addColorStop(1, 'rgba(142,105,60,0.8)');
+  } else if (stair) {
+    g.addColorStop(0, 'rgba(38,44,50,0.96)');
+    g.addColorStop(1, 'rgba(24,28,32,0.98)');
+  } else {
+    g.addColorStop(0, 'rgba(58,66,74,0.96)');
+    g.addColorStop(1, 'rgba(30,35,40,0.98)');
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, ww, wh);
+
+  if (!lit && !stair) {
+    // занавески — единственное, что меняется от этажа к этажу
+    if (rng() < 0.45) {
+      ctx.fillStyle = ['#6d4a44', '#4d5a4a', '#6a5d46', '#4a4d5a'][Math.floor(rng() * 4)]!;
+      const cw = ww * (0.1 + rng() * 0.14);
+      ctx.fillRect(x, y, cw, wh);
+      ctx.fillRect(x + ww - cw, y, cw, wh);
+    }
+    // редкое окно забито фанерой
+    if (rng() < 0.05) {
+      ctx.fillStyle = '#6b563b';
+      ctx.fillRect(x, y, ww, wh);
+      ctx.strokeStyle = 'rgba(40,30,18,0.7)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x, y + wh * (0.2 + i * 0.3));
+        ctx.lineTo(x + ww, y + wh * (0.05 + i * 0.3));
+        ctx.stroke();
+      }
+    }
+  }
+
+  // переплёт
+  ctx.strokeStyle = lit ? 'rgba(68,56,40,0.9)' : palette.frame;
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(x, y, ww, wh);
+  ctx.beginPath();
+  ctx.moveTo(x + ww / 2, y);
+  ctx.lineTo(x + ww / 2, y + wh);
+  ctx.moveTo(x, y + wh * 0.4);
+  ctx.lineTo(x + ww, y + wh * 0.4);
+  ctx.stroke();
+
+  // подоконник и потёк под ним
+  ctx.fillStyle = palette.sill;
+  ctx.fillRect(x - 5, y + wh + 4, ww + 10, 3);
+  if (rng() < 0.35) {
+    ctx.fillStyle = 'rgba(20,24,26,0.16)';
+    ctx.fillRect(x - 3, y + wh + 7, ww + 6, 12 + rng() * 40);
+  }
+}
+
+function drawPanelDoor(ctx: Ctx, cx: number, h: number): void {
+  const dw = 1.5 * PANEL_PX;
+  const dh = 2.2 * PANEL_PX;
+  const x = cx - dw / 2;
+  const y = h - dh;
+
+  ctx.fillStyle = 'rgba(14,16,18,0.95)';
+  ctx.fillRect(x - 5, y - 7, dw + 10, dh + 7);
+
+  // металлическая дверь подъезда
+  ctx.fillStyle = '#3b4044';
+  ctx.fillRect(x, y, dw, dh);
+  ctx.strokeStyle = '#5c6367';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x + 3, y + 3, dw - 6, dh - 6);
+
+  // ручка и номер
+  ctx.fillStyle = '#9aa0a2';
+  ctx.fillRect(x + dw - 11, y + dh * 0.56, 4, 11);
+  ctx.fillStyle = 'rgba(220,220,210,0.45)';
+  ctx.fillRect(x + 7, y + 9, 13, 8);
 }
 
 function hashKey(key: string): number {
