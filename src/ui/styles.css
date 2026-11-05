@@ -637,6 +637,15 @@ body {
   color: #8d8578;
 }
 
+/* Смерть: тот же экран, но другое имя и меньше света в комнате. */
+.finale--death {
+  background: rgba(9, 5, 5, 0.95);
+}
+
+.finale--death .finale__title {
+  color: #9c5c55;
+}
+
 .finale__text {
   font-size: 1rem;
   line-height: 1.75;

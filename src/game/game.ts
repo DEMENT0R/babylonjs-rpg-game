@@ -36,6 +36,8 @@ export interface GameEvents {
   onSpot(spot: Spot | null): void;
   onPhase(phase: GamePhase): void;
   onTime(): void;
+  /** Забег закончился: игрок должен увидеть, чем именно. */
+  onDeath(cause: string): void;
 }
 
 const MINUTES_PER_REAL_SECOND = 1 / 3;
@@ -297,6 +299,7 @@ export class Game {
     this.log.push(cause, 'warn', this.clock.label);
     this.events.onLog();
     this.setPhase('dead');
+    this.events.onDeath(cause);
   }
 
   say(text: string): void {

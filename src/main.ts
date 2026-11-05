@@ -31,6 +31,7 @@ game.events = {
   onSpot: (spot) => ui.setSpot(spot),
   onPhase: (phase) => ui.onPhase(phase),
   onTime: () => ui.renderTime(),
+  onDeath: (cause) => ui.showDeath(cause, () => window.location.reload()),
 };
 
 game.controller.onInteract = () => {

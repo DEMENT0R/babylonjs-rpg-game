@@ -343,6 +343,26 @@ export class UI {
     this.clearOverlay();
   }
 
+  /** Конец забега не по сюжету: замёрз, не удержался, не проснулся. */
+  showDeath(cause: string, onRestart: () => void): void {
+    this.clearOverlay();
+    this.overlay.style.pointerEvents = 'auto';
+    const wrap = el('div', 'finale finale--death');
+    const title = el('div', 'finale__title');
+    title.textContent = 'здесь всё и закончилось';
+    const text = el('div', 'finale__text');
+    text.textContent = cause;
+    const stats = el('div', 'finale__stats');
+    const g = this.game;
+    stats.innerHTML = `<span>день ${g.clock.day}</span><span>${g.clock.label}</span><span>${formatTemperature(g.ambientC)}</span>`;
+    const again = el('button', 'title-screen__go');
+    again.textContent = 'ещё раз';
+    again.addEventListener('click', onRestart);
+
+    wrap.append(title, text, stats, again);
+    this.overlay.appendChild(wrap);
+  }
+
   showFinale(titleText: string, body: string, onRestart: () => void): void {
     this.clearOverlay();
     this.overlay.style.pointerEvents = 'auto';
