@@ -1,6 +1,8 @@
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import type { Scene } from '@babylonjs/core/scene';
 import { LevelBuilder, Kit } from './kit';
 import type { Level } from './level';
@@ -74,6 +76,8 @@ export function buildFlat(scene: Scene, kit: Kit): Level {
   b.box('front-door-frame', [1.35, 2.2, 0.12], [-2.6, 1.1, 4.0], 'wood');
   b.box('front-door-handle', [0.06, 0.06, 0.12], [-3.05, 1.05, 3.84], 'metal');
 
+  const setHeat = stoveFire(scene, b);
+
   return {
     id: 'flat',
     title: 'Квартира',
@@ -82,9 +86,12 @@ export function buildFlat(scene: Scene, kit: Kit): Level {
     spawn: { x: 2.6, y: 0, z: -1.1, yaw: Math.PI },
     ambientC: 9,
     outdoors: false,
+    holdsHeat: true,
+    setHeat,
     spots: [
       { id: 'flat.window', position: [-2.6, 1.6, -3.7], radius: 1.4, label: 'Окно', kind: 'examine' },
       { id: 'flat.bed', position: [3.4, 0.7, -3.0], radius: 1.4, label: 'Кровать', kind: 'sleep' },
+      { id: 'flat.stove', position: [4.5, 0.95, 2.6], radius: 1.3, label: 'Печь', kind: 'use' },
       { id: 'flat.wardrobe', position: [-4.4, 1.1, -3.2], radius: 1.3, label: 'Шкаф в комнате', kind: 'loot' },
       { id: 'flat.hall-wardrobe', position: [-4.4, 1.1, 1.4], radius: 1.4, label: 'Шкаф в прихожей', kind: 'loot' },
       { id: 'flat.fridge', position: [4.4, 1.0, 1.1], radius: 1.3, label: 'Холодильник', kind: 'loot' },
@@ -126,4 +133,35 @@ function frame(b: LevelBuilder, x: number, y: number, z: number, dir: number): v
   b.box('win-sill', [1.86, 0.07, 0.3], [x, y - 0.8, z + 0.16 * dir], 'wood');
   b.box('win-cross', [0.06, 1.42, 0.08], [x, y, dz - 0.01 * dir], 'wood');
   b.box('win-cross2', [1.5, 0.05, 0.08], [x, y + 0.18, dz - 0.01 * dir], 'wood');
+}
+
+/**
+ * Огонь в печи. Пока топка горит — оранжевый свет на кухне и раскалённая
+ * дверца; гаснет вместе с топливом. Самый заметный признак жизни в доме.
+ */
+function stoveFire(scene: Scene, b: LevelBuilder): (lit: boolean) => void {
+  // Свет ставим перед дверцей, а не внутри топки: иначе он светит в стену
+  // за печью и на кухне не видно, что дом топят.
+  const light = new PointLight('stove-fire', new Vector3(4.5, 0.62, 3.05), scene);
+  light.diffuse = new Color3(1, 0.52, 0.2);
+  light.specular = new Color3(1, 0.4, 0.12);
+  light.range = 6;
+  light.intensity = 3.2;
+  light.parent = b.root;
+  light.setEnabled(false);
+
+  const glow = new StandardMaterial('stove-glow', scene);
+  glow.disableLighting = true;
+  glow.diffuseColor = new Color3(0, 0, 0);
+  glow.specularColor = new Color3(0, 0, 0);
+  glow.emissiveColor = new Color3(1, 0.36, 0.08);
+  const door = b.box('stove-door', [0.42, 0.28, 0.04], [4.5, 0.5, 2.93], undefined, {
+    material: glow,
+  });
+  door.isVisible = false;
+
+  return (lit: boolean) => {
+    light.setEnabled(lit);
+    door.isVisible = lit;
+  };
 }

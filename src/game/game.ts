@@ -1,6 +1,7 @@
 import type { UniversalCamera } from '@babylonjs/core/Cameras/universalCamera';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Clock, outsideTemperature } from '../core/clock';
+import { Heat } from '../core/heat';
 import { GameLog } from '../core/log';
 import { Player } from '../core/player';
 import { readSave, writeSave } from '../core/save';
@@ -46,6 +47,8 @@ export class Game {
   readonly controller: FirstPersonController;
   readonly log = new GameLog();
   readonly clock = new Clock();
+  /** Тепло квартиры: пока топка горит, дом тянется к печной температуре. */
+  heat = new Heat();
   readonly levels = new Map<string, Level>();
   readonly kit: Kit;
 
@@ -59,6 +62,7 @@ export class Game {
   private minuteAccumulator = 0;
   private vitalsAccumulator = 0;
   private lastSpotId: string | null = null;
+  private heatWasLit = false;
 
   constructor(renderer: Renderer, atmosphere: Atmosphere) {
     this.renderer = renderer;
@@ -97,6 +101,8 @@ export class Game {
     this.player = Player.create(charId);
     this.clock.day = 1;
     this.clock.minutes = 7 * 60 + 42;
+    this.heat = new Heat();
+    this.heatWasLit = false;
     this.flags = {};
     this.travelTo('flat', { silent: true });
     this.setPhase('playing');
@@ -131,6 +137,7 @@ export class Game {
     const floorY = floorHeightAt(spawn.x, spawn.z, level.col, spawn.y);
     this.controller.teleport(spawn.x, floorY, spawn.z, spawn.yaw);
     this.applyLevelAtmosphere();
+    this.applyHeatToLevel();
     if (!opts.silent) this.log.info(`— ${level.title} —`, this.clock.label);
     this.events.onVitals();
     this.events.onTime();
@@ -151,6 +158,19 @@ export class Game {
     this.sfx?.setOutdoor(level.outdoors);
   }
 
+  /** Показать огонь в печи так, как он есть: зажжён или погас. */
+  private applyHeatToLevel(): void {
+    this.heatWasLit = this.heat.lit;
+    this.level.setHeat?.(this.heatWasLit);
+  }
+
+  /** Огонь мог кончиться или начаться посреди шага — обновить свет. */
+  private syncHeat(): void {
+    if (this.heat.lit === this.heatWasLit) return;
+    this.heatWasLit = this.heat.lit;
+    this.level.setHeat?.(this.heatWasLit);
+  }
+
   // ————— сохранение —————
 
   save(): void {
@@ -160,6 +180,7 @@ export class Game {
       vitals: { ...this.player.vitals.state },
       inventory: this.player.inventory.snapshot(),
       clock: { day: this.clock.day, minutes: this.clock.minutes },
+      heat: this.heat.snapshot(),
       flags: { ...this.flags },
       level: this.currentLevelId,
       position: {
@@ -183,6 +204,7 @@ export class Game {
     });
     this.clock.day = data.clock.day;
     this.clock.minutes = data.clock.minutes;
+    this.heat = Heat.restore(data.heat);
     this.flags = { ...data.flags };
 
     this.log.entries = [];
@@ -193,6 +215,7 @@ export class Game {
     this.controller.teleport(data.position.x, data.position.y, data.position.z, data.position.yaw);
     void level;
     this.applyLevelAtmosphere();
+    this.applyHeatToLevel();
     this.setPhase('playing');
     this.log.info('— продолжено —', this.clock.label);
     this.events.onLog();
@@ -202,7 +225,9 @@ export class Game {
   }
 
   get ambientC(): number {
-    return this.level.outdoors ? outsideTemperature(this.clock) : this.level.ambientC;
+    if (this.level.outdoors) return outsideTemperature(this.clock);
+    // Квартира держит тепло сама: это симуляция, а не константа локации.
+    return this.level.holdsHeat ? this.heat.temperature : this.level.ambientC;
   }
 
   update(dt: number): void {
@@ -237,6 +262,10 @@ export class Game {
     if (!this.player) return;
     const hours = minutes / 60;
     if (hours <= 0) return;
+    // Дом остывает независимо от того, где ты: вернуться в тепло не выйдет,
+    // если тепло нечем поддержать.
+    this.heat.step(hours, outsideTemperature(this.clock));
+    this.syncHeat();
     const res = this.player.vitals.tick(hours, {
       ambientC: this.ambientC,
       insulationC: this.player.insulation,

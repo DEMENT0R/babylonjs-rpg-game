@@ -4,6 +4,7 @@ import { CombatView } from '../ui/combatview';
 import type { DialogueOption, UI } from '../ui/ui';
 import type { Spot } from '../render/world/level';
 import { item } from '../core/items';
+import { formatTemperature } from '../core/clock';
 import { clearSave } from '../core/save';
 
 const VALERA: EnemyDef = {
@@ -64,6 +65,9 @@ export class Scenario {
         break;
       case 'flat.bed':
         this.game.say('Спать днём — проснуться к темноте. Сейчас не время.');
+        break;
+      case 'flat.stove':
+        this.stove();
         break;
       case 'flat.wardrobe':
         this.loot('flat.wardrobe', [['hammer', 1]], 'Ящик с инструментами. Молоток тяжёлый и честный.');
@@ -133,6 +137,13 @@ export class Scenario {
       case 'street.bins':
         this.loot('street.bins', [['galety', 1], ['vodka', 1]], 'Баки выпотрошены. На дне — галеты и бутылка, которую пожалели.');
         break;
+      case 'street.pallets':
+        this.loot(
+          'street.pallets',
+          [['wood', 2]],
+          'Штабель поддонов под снегом. Верхние доски сырые, нижние — сухие и звонкие. Ты выламываешь охапку.',
+        );
+        break;
       case 'street.car1':
         this.loot('street.car1', [['batteries', 2]], 'Машина чужая, дверь не заперта. На заднем сиденье — детское кресло и батарейки.');
         break;
@@ -182,6 +193,58 @@ export class Scenario {
   }
 
   // ————— сцены —————
+
+  /** Печь: единственный способ вернуть дому тепло, когда отопление не работает. */
+  private stove(): void {
+    const g = this.game;
+    const p = g.player;
+    if (!p) return;
+    const heat = g.heat;
+
+    if (heat.lit) {
+      g.say(`Топка гудит. Огня хватит ещё на ${hoursLabel(heat.burnHours)}.`);
+    } else {
+      g.say(`Печь холодная. В комнате ${formatTemperature(heat.temperature)}.`);
+    }
+
+    const hasFire = p.inventory.has('matches') || p.inventory.has('lighter');
+    const fuel = p.inventory.list().filter(({ def }) => def.fuel);
+    if (!fuel.length) {
+      g.info('Топить нечем. Дрова надо искать на улице.');
+      return;
+    }
+    if (!hasFire) {
+      g.info('Спичек нет. Печь — просто железо.');
+      return;
+    }
+
+    const options: DialogueOption[] = fuel.map(({ def, count }) => ({
+      id: `fuel:${def.id}`,
+      text: `Подложить: ${def.name}${count > 1 ? ` ×${count}` : ''}`,
+      note: `${hoursLabel(def.fuel ?? 0)} горения`,
+    }));
+    options.push({ id: 'leave', text: 'Пока не надо' });
+
+    this.dialogue(
+      'Печь',
+      'Дверца на скрипящих петлях. Внутри старая зола и обгоревшая газета.',
+      options,
+      (id) => {
+        if (!id.startsWith('fuel:')) return;
+        const fuelId = id.slice('fuel:'.length);
+        const def = item(fuelId);
+        if (!def.fuel || !g.take(fuelId, 1)) return;
+        heat.addFuel(def.fuel);
+        g.spendMinutes(4);
+        g.say(`Огонь берётся не сразу, потом гудит. Хватит ещё на ${hoursLabel(def.fuel)}.`);
+        if (heat.temperature < 0) {
+          g.say('Дом прогреется не мгновенно: сначала прогревается кирпич.');
+        }
+        g.events.onVitals();
+        g.save();
+      },
+    );
+  }
 
   private windowView(): void {
     const g = this.game;
@@ -507,4 +570,14 @@ export class Scenario {
       onChoose(id);
     });
   }
+}
+
+/** Часы и минуты без дробей: «2 ч 40 мин». */
+function hoursLabel(hours: number): string {
+  if (hours <= 0) return 'несколько минут';
+  const whole = Math.floor(hours);
+  const minutes = Math.round((hours - whole) * 60);
+  if (whole === 0) return `${minutes} мин`;
+  if (minutes === 0) return `${whole} ч`;
+  return `${whole} ч ${minutes} мин`;
 }

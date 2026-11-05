@@ -75,6 +75,7 @@ export function buildStreet(scene: Scene, kit: Kit): Level {
   // — дворовые вещи —
   playground(b, kit, -14, 4);
   bins(b, kit, 12, -6);
+  pallets(b, kit, 16, -4.2);
   transformer(b, kit, -13, 15);
   streetLamp(b, kit, -8, -3, true);
   streetLamp(b, kit, 9, 6, false);
@@ -106,6 +107,7 @@ export function buildStreet(scene: Scene, kit: Kit): Level {
       { id: 'street.shop-door', position: [15.4, 1.0, 10], radius: 1.7, label: 'Магазин', kind: 'door', target: 'shop' },
       { id: 'street.notice', position: [-3.05, 1.6, -11.7], radius: 1.3, label: 'Объявление у подъезда', kind: 'examine' },
       { id: 'street.bins', position: [12, 0.6, -6], radius: 1.6, label: 'Мусорные баки', kind: 'loot' },
+      { id: 'street.pallets', position: [16, 0.5, -4.2], radius: 1.5, label: 'Поддоны у баков', kind: 'loot' },
       { id: 'street.car1', position: [-6.5, 0.8, -7.4], radius: 2.0, label: 'Машина', kind: 'loot' },
       { id: 'street.car2', position: [4.8, 0.8, -7.0], radius: 2.0, label: 'Машина', kind: 'loot' },
       { id: 'street.playground', position: [-14, 0.6, 4], radius: 2.2, label: 'Детская площадка', kind: 'examine' },
@@ -165,6 +167,17 @@ function bins(b: LevelBuilder, kit: Kit, x: number, z: number): void {
   }
   b.box('bin-snow', [3.6, 0.2, 1.0], [x + 1.15, 1.2, z], 'snow');
   b.col.walls.push({ x0: x - 0.6, x1: x + 2.9, z0: z - 0.5, z1: z + 0.5 });
+  void kit;
+}
+
+/** Штабель поддонов у баков: единственное сухое дерево во дворе. */
+function pallets(b: LevelBuilder, kit: Kit, x: number, z: number): void {
+  for (let i = 0; i < 3; i++) {
+    const slab = b.box('pallet', [1.2, 0.14, 0.8], [x, 0.07 + i * 0.15, z], 'wood');
+    slab.rotation.y = i * 0.06;
+  }
+  b.box('pallet-snow', [1.25, 0.06, 0.85], [x, 0.46, z], 'snow');
+  b.col.walls.push({ x0: x - 0.6, x1: x + 0.6, z0: z - 0.4, z1: z + 0.4 });
   void kit;
 }
 
