@@ -165,7 +165,7 @@ export class UI {
     const title = el('div', 'title-serif');
     title.textContent = 'ПАНЕЛЬ';
     const sub = el('div', 'title-screen__sub');
-    sub.innerHTML = 'день первый<br />ядерная зима, панельный район';
+    sub.innerHTML = 'два дня<br />ядерная зима, панельный район';
 
     const buttons = el('div', 'title-screen__buttons');
     if (opts.onContinue) {
