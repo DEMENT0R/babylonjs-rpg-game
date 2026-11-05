@@ -41,7 +41,7 @@ export class Kit {
     m.specularColor = new Color3(0.02, 0.02, 0.03);
     m.ambientColor = new Color3(0.3, 0.32, 0.35);
     m.backFaceCulling = true;
-    m.maxSimultaneousLights = 8;
+    m.maxSimultaneousLights = 12;
 
     switch (kind) {
       case 'concrete':

@@ -140,13 +140,13 @@ function frame(b: LevelBuilder, x: number, y: number, z: number, dir: number): v
  * дверца; гаснет вместе с топливом. Самый заметный признак жизни в доме.
  */
 function stoveFire(scene: Scene, b: LevelBuilder): (lit: boolean) => void {
-  // Свет ставим перед дверцей, а не внутри топки: иначе он светит в стену
-  // за печью и на кухне не видно, что дом топят.
-  const light = new PointLight('stove-fire', new Vector3(4.5, 0.62, 3.05), scene);
+  // Печь стоит в углу у южной стены, поэтому дверца смотрит в комнату (-z):
+  // иначе огонь светил бы в стену, а игрок видел бы только чёрную коробку.
+  const light = new PointLight('stove-fire', new Vector3(4.5, 0.62, 2.2), scene);
   light.diffuse = new Color3(1, 0.52, 0.2);
   light.specular = new Color3(1, 0.4, 0.12);
-  light.range = 6;
-  light.intensity = 3.2;
+  light.range = 7;
+  light.intensity = 12;
   light.parent = b.root;
   light.setEnabled(false);
 
@@ -155,7 +155,7 @@ function stoveFire(scene: Scene, b: LevelBuilder): (lit: boolean) => void {
   glow.diffuseColor = new Color3(0, 0, 0);
   glow.specularColor = new Color3(0, 0, 0);
   glow.emissiveColor = new Color3(1, 0.36, 0.08);
-  const door = b.box('stove-door', [0.42, 0.28, 0.04], [4.5, 0.5, 2.93], undefined, {
+  const door = b.box('stove-door', [0.42, 0.28, 0.04], [4.5, 0.5, 2.26], undefined, {
     material: glow,
   });
   door.isVisible = false;
