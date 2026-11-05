@@ -27,6 +27,12 @@
   const startBtn = Array.from(document.querySelectorAll('.title-screen__go')).find((b) =>
     b.textContent.includes('начать'),
   );
+  transcript.push(
+    'титул: ' +
+      (document.querySelector('.title-screen__version')?.textContent ?? '—') +
+      ' · ' +
+      (document.querySelector('.changelog-link')?.textContent ?? '—'),
+  );
   if (startBtn) startBtn.click();
   await wait(500);
   click('.card', 3);
