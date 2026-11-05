@@ -659,7 +659,8 @@ export class Scenario {
     }
 
     clearSave();
-    this.ui.showFinale('конец второго дня', text, () => window.location.reload());
+    // Эпилог — это уже утро третьего дня: так подпись и часы внизу не спорят.
+    this.ui.showFinale('рассвет третьего дня', text, () => window.location.reload());
     g.setPhaseExternal('ending');
   }
 
