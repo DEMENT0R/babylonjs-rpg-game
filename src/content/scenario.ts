@@ -4,7 +4,7 @@ import { CombatView } from '../ui/combatview';
 import type { DialogueOption, UI } from '../ui/ui';
 import type { Spot } from '../render/world/level';
 import { item } from '../core/items';
-import { formatTemperature } from '../core/clock';
+import { formatTemperature, outsideTemperature, type Clock } from '../core/clock';
 import { clearSave } from '../core/save';
 
 const VALERA: EnemyDef = {
@@ -64,13 +64,13 @@ export class Scenario {
         this.game.say('По всем каналам серая рябь. На одном диктор без звука шевелит губами — будто извиняется.');
         break;
       case 'flat.bed':
-        this.game.say('Спать днём — проснуться к темноте. Сейчас не время.');
+        this.bed();
         break;
       case 'flat.stove':
         this.stove();
         break;
       case 'flat.wardrobe':
-        this.loot('flat.wardrobe', [['hammer', 1]], 'Ящик с инструментами. Молоток тяжёлый и честный.');
+        this.wardrobe();
         break;
       case 'flat.hall-wardrobe':
         this.loot(
@@ -246,6 +246,38 @@ export class Scenario {
     );
   }
 
+  /** Шкаф: сначала инструмент, потом — топливо. Дерево есть в любом доме. */
+  private wardrobe(): void {
+    const g = this.game;
+    const p = g.player;
+    if (!p) return;
+
+    if (!g.getFlag('loot:flat.wardrobe')) {
+      this.loot('flat.wardrobe', [['hammer', 1]], 'Ящик с инструментами. Молоток тяжёлый и честный.');
+      return;
+    }
+    if (!p.inventory.has('hammer') || g.getFlag('flat.wardrobe.broken')) {
+      g.info('Здесь уже пусто.');
+      return;
+    }
+
+    this.dialogue(
+      'Шкаф',
+      'Двери, полки, задняя стенка. Двадцать лет назад его собирали на совесть — и не для того, чтобы он пережил хозяев.',
+      [
+        { id: 'break', text: 'Разобрать шкаф', note: '2 ч работы · две охапки дров' },
+        { id: 'leave', text: 'Оставить как есть' },
+      ],
+      (id) => {
+        if (id !== 'break') return;
+        g.setFlag('flat.wardrobe.broken');
+        g.spendMinutes(120);
+        g.give('wood', 2);
+        g.say('Молоток идёт легко. Дерево сухое и звонкое — такое берётся сразу.');
+      },
+    );
+  }
+
   private windowView(): void {
     const g = this.game;
     g.spendMinutes(2);
@@ -290,12 +322,7 @@ export class Scenario {
   }
 
   private enterStairwell(): void {
-    const g = this.game;
-    if (g.getFlag('shop.done') && !g.getFlag('ending.shown')) {
-      this.finale('home');
-      return;
-    }
-    g.travelTo('stairwell', { spawnAt: 'stair.street-door' });
+    this.game.travelTo('stairwell', { spawnAt: 'stair.street-door' });
   }
 
   private enterShop(): void {
@@ -308,12 +335,7 @@ export class Scenario {
   }
 
   private leaveShop(): void {
-    const g = this.game;
-    if (g.getFlag('shop.done')) {
-      this.finale('street');
-      return;
-    }
-    g.travelTo('street', { spawnAt: 'street.shop-door' });
+    this.game.travelTo('street', { spawnAt: 'street.shop-door' });
   }
 
   private transformer(): void {
@@ -511,34 +533,133 @@ export class Scenario {
     this.combatView.show(combat);
   }
 
-  // ————— финал —————
+  // ————— день и ночь —————
 
-  private finale(where: 'home' | 'street'): void {
+  /** Кровать — единственное место, где день заканчивается. */
+  private bed(): void {
+    const g = this.game;
+    const p = g.player;
+    if (!p) return;
+
+    if (!evening(g.clock)) {
+      const toEvening = eveningMinutes(g.clock);
+      this.dialogue(
+        'Кровать',
+        `Ещё светло. До темноты ${hoursLabel(toEvening / 60)} — можно переждать лёжа, глядя в потолок.`,
+        [
+          {
+            id: 'wait',
+            text: 'Дождаться темноты',
+            note: `в комнате ${formatTemperature(g.heat.temperature)}`,
+          },
+          { id: 'leave', text: 'Встать' },
+        ],
+        (id) => {
+          if (id !== 'wait') return;
+          g.spendMinutes(toEvening);
+          if (g.phase === 'dead') return;
+          g.say('Ты лежишь и слушаешь, как остывает дом. Свет за окном уходит медленно, как вода.');
+          this.bed();
+        },
+      );
+      return;
+    }
+
+    if (g.clock.day >= 2) {
+      this.nightOfDay('Вторая ночь', () => this.endDayTwo());
+      return;
+    }
+    if (!g.getFlag('shop.done')) {
+      g.say('Спать, пока в магазине кто-то стоит у полки? Нет. Сначала надо вернуться.');
+      return;
+    }
+    if (!g.getFlag('night.one')) {
+      g.setFlag('night.one');
+      g.say('Домой ты возвращаешься, когда за окнами темно по-настоящему.');
+      g.say(`В комнате ${formatTemperature(g.heat.temperature)}. Отопления нет третьи сутки, и дом это знает.`);
+      if (!g.heat.lit) g.say('Печь холодная. Если не растопить — к утру будет хуже.');
+    }
+    this.nightOfDay('Первая ночь', () => this.startDayTwo());
+  }
+
+  /** Предложить лечь и провести ночь: дом остывает по-настоящему, пока ты спишь. */
+  private nightOfDay(who: string, onWake: () => void): void {
+    const g = this.game;
+    const hours = g.hoursUntilMorning();
+    const burn = Math.min(g.heat.burnHours, hours);
+    const morning = g.heat.peek(hours, outsideTemperature(g.clock));
+    const risky = morning < 6;
+
+    const body = [
+      `До утра ${hoursLabel(hours)}.`,
+      burn > 0 ? `Топки хватит на ${hoursLabel(burn)}.` : 'Топить нечем: печь холодная.',
+      risky ? 'Если не согреть дом, к утру можно не проснуться.' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    this.dialogue(
+      who,
+      body,
+      [
+        { id: 'sleep', text: 'Лечь спать', note: `до 07:42 · к утру ${formatTemperature(morning)}` },
+        { id: 'wait', text: 'Ещё не время' },
+      ],
+      (id) => {
+        if (id !== 'sleep') return;
+        const res = g.sleep(hours);
+        if (g.phase === 'dead') return;
+        g.say(wakeText(res.morningC));
+        onWake();
+      },
+    );
+  }
+
+  /** Утро второго дня: что осталось от ночи и что с этим делать. */
+  private startDayTwo(): void {
+    const g = this.game;
+    if (g.getFlag('day2.started')) return;
+    g.setFlag('day2.started');
+    g.say('Второй день.');
+    g.say(
+      `На улице холоднее, чем вчера. В комнате ${formatTemperature(g.heat.temperature)} — столько осталось от ночи.`,
+    );
+    if (g.getFlag('valera.friendly')) {
+      g.say('Под дверью — охапка дров и записка печатными буквами: «Держи. Валера».');
+      g.give('wood', 1);
+    } else if (g.getFlag('looter.friendly')) {
+      g.say('На площадке у двери стоит банка тушёнки. Кто-то поднялся на девятый этаж, чтобы её оставить.');
+      g.give('tushonka', 1);
+    }
+    g.info('Дров в квартире нет. Топить — тем, что принесёшь с улицы. Дожить до вечера — вот и весь план.');
+    g.events.onVitals();
+    g.save();
+  }
+
+  private endDayTwo(): void {
     const g = this.game;
     if (g.getFlag('ending.shown')) return;
     g.setFlag('ending.shown');
 
     const flags = g.flags;
+    const morning = g.heat.temperature;
     let text: string;
-    if (flags['killed']) {
+    if (morning < 5) {
       text =
-        'Ты возвращаешься домой и долго не можешь снять куртку. В кармане — чужие консервы. В голове — чужая рука, которая тянулась к ним. Ты выжил. Это пока всё, что можно сказать.';
+        'Ты просыпаешься в холоде и поначалу не понимаешь, чем это отличается от того, чтобы не проснуться. Тепла хватило ровно до половины ночи. Дом остался домом, но он больше не греет.';
+    } else if (flags['killed']) {
+      text =
+        'Ты просыпаешься в тепле и почти сразу вспоминаешь про чужие консервы. Первый день никто не отменит. Но печь держит, дом стоит, и это уже не выживание, а жизнь.';
     } else if (flags['gave-food'] || flags['looter.friendly']) {
       text =
-        'Ты возвращаешься домой. Свет в квартире не появился, отопление не включили, но в подъезде теперь есть человек, который знает твоё имя. В этом городе это уже ресурс.';
-    } else if (flags['looter.left']) {
-      text =
-        'Ты уходишь и не оборачиваешься. За спиной остаётся человек с консервами и без надежды. Ты говоришь себе, что это не твоя война. Пока получается.';
+        'Ты просыпаешься в тепле. Дрова под дверью — не милостыня, а обмен: вчера ты отдал еду, сегодня тебе отдали тепло. Так в этом городе и заводится что-то похожее на людей.';
     } else {
       text =
-        'Ты возвращаешься домой с полным рюкзаком и пустым чувством. День первый закончился. Завтра будет второй, и он будет холоднее.';
+        'Ты просыпаешься в тепле — и в пустой квартире. Свет не вернулся, отопление не включили, но ты научился держать дом живым без них. Второй день закончился. Третий будет холоднее.';
     }
 
-    if (where === 'street') {
-      g.say('Ты закрываешь дверь магазина и идёшь обратно через двор. Снег всё идёт.');
-    }
     clearSave();
-    this.ui.showFinale('конец первого дня', text, () => window.location.reload());
+    this.ui.showFinale('конец второго дня', text, () => window.location.reload());
     g.setPhaseExternal('ending');
   }
 
@@ -570,6 +691,24 @@ export class Scenario {
       onChoose(id);
     });
   }
+}
+
+const EVENING_MINUTES = 17 * 60;
+
+/** Вечер: с 17:00 день считается прожитым; до четырёх утра — ещё ночь. */
+function evening(clock: Clock): boolean {
+  return clock.hourFloat >= 17 || clock.hourFloat < 4;
+}
+
+/** Сколько минут осталось до вечера; 0 — если вечер уже наступил. */
+function eveningMinutes(clock: Clock): number {
+  return evening(clock) ? 0 : EVENING_MINUTES - clock.minutes;
+}
+
+function wakeText(morningC: number): string {
+  if (morningC < 0) return 'Ты просыпаешься от того, что не можешь разогнуть пальцы. В комнате минус.';
+  if (morningC < 8) return 'Ты просыпаешься в холодной комнате: дыхание видно, одеяло как жесть.';
+  return 'Ты просыпаешься в тепле. Впервые за три дня дом похож на дом.';
 }
 
 /** Часы и минуты без дробей: «2 ч 40 мин». */

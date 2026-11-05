@@ -11,7 +11,11 @@ export interface InventorySnapshot {
   capacityBonus: number;
 }
 
-const BASE_CAPACITY = 9;
+/**
+ * Базовый рюкзак. Двенадцать, а не девять: с тех пор как дом надо топить,
+ * дрова должны помещаться в один заход вместе с едой, а не вместо неё.
+ */
+const BASE_CAPACITY = 12;
 const BACKPACK_BONUS = 9;
 
 /** Инвентарь: вес, стопки, слоты. Никакой магии — всё через предметы. */

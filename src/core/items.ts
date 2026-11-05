@@ -253,10 +253,10 @@ const catalog: ItemDef[] = [
     id: 'wood',
     name: 'Дрова',
     desc: 'Охапка поленьев от разобранного поддона. Пахнут смолой и снегом.',
-    weight: 2.6,
+    weight: 1.2,
     category: 'fuel',
     stackable: true,
-    fuel: 4,
+    fuel: 5,
   },
 
   // — свет и огонь —

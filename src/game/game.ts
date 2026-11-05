@@ -1,6 +1,6 @@
 import type { UniversalCamera } from '@babylonjs/core/Cameras/universalCamera';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Clock, outsideTemperature } from '../core/clock';
+import { Clock, outsideTemperature, clamp, MINUTES_PER_DAY } from '../core/clock';
 import { Heat } from '../core/heat';
 import { GameLog } from '../core/log';
 import { Player } from '../core/player';
@@ -42,6 +42,21 @@ export interface GameEvents {
 
 const MINUTES_PER_REAL_SECOND = 1 / 3;
 const VITALS_STEP = 5;
+/** Во сколько заканчивается любая ночь. */
+const WAKE_MINUTES = 7 * 60 + 42;
+/** Одеяло: под ним теплее, чем в комнате, на столько градусов. */
+const BED_INSULATION_C = 6;
+
+/** Чем закончилась ночь. */
+export interface SleepResult {
+  hours: number;
+  /** Температура в комнате утром. */
+  morningC: number;
+  /** Самая холодная точка ночи. */
+  minC: number;
+  /** Проснулся, а не замёрз. */
+  woke: boolean;
+}
 
 export class Game {
   readonly renderer: Renderer;
@@ -258,6 +273,53 @@ export class Game {
     this.clock.advance(min);
     this.tickVitals(min);
     this.events.onTime();
+  }
+
+  /** Сколько часов до утра: любая ночь кончается в 07:42. */
+  hoursUntilMorning(): number {
+    const minutes = (WAKE_MINUTES - this.clock.minutes + MINUTES_PER_DAY) % MINUTES_PER_DAY || MINUTES_PER_DAY;
+    return minutes / 60;
+  }
+
+  /**
+   * Проспать до утра. Час за часом — потому что топка гаснет посреди ночи,
+   * и дом успевает остыть именно тогда, когда ты этого не заметишь.
+   */
+  sleep(hours: number): SleepResult {
+    const p = this.player;
+    let left = Math.max(0, hours);
+    let minC = this.heat.temperature;
+    if (!p) return { hours: 0, morningC: minC, minC, woke: true };
+
+    while (left > 1e-4) {
+      const step = Math.min(1, left);
+      left -= step;
+      this.heat.step(step, outsideTemperature(this.clock));
+      this.clock.advance(step * 60);
+      minC = Math.min(minC, this.heat.temperature);
+      const res = p.vitals.tick(step, {
+        ambientC: this.heat.temperature,
+        insulationC: p.insulation + BED_INSULATION_C,
+      });
+      for (const w of res.warnings) this.warn(w);
+      if (p.vitals.dead) {
+        this.syncHeat();
+        this.die('Ты не проснулся. Утро пришло без тебя.');
+        return { hours, morningC: this.heat.temperature, minC, woke: false };
+      }
+    }
+
+    this.clock.minutes = WAKE_MINUTES;
+    this.syncHeat();
+    // Сон возвращает силы — но только там, где есть чем согреться.
+    const warm = this.heat.temperature > 12;
+    const s = p.vitals.state;
+    s.energy = clamp(s.energy + (warm ? 30 : 10), 0, 100);
+    s.sanity = clamp(s.sanity + (warm ? 14 : 2), 0, 100);
+    if (warm) p.vitals.heal(6);
+    this.events.onVitals();
+    this.events.onTime();
+    return { hours, morningC: this.heat.temperature, minC, woke: true };
   }
 
   private tickVitals(minutes: number): void {
