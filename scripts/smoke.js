@@ -29,12 +29,14 @@
   );
   if (startBtn) startBtn.click();
   await wait(500);
-  click('.card', 4);
+  click('.card', 3);
   await wait(900);
   transcript.push('старт: ' + g.phase + ' / ' + (g.player && g.player.def.id));
 
+  // ————— день первый —————
   await step('квартира.окно', () => sc.handle(spot('flat.window')));
-  await step('квартира.шкаф', () => sc.handle(spot('flat.hall-wardrobe')));
+  await step('квартира.шкаф', () => sc.handle(spot('flat.wardrobe')));
+  await step('квартира.стол', () => sc.handle(spot('flat.table')));
   await step('квартира.холодильник', () => sc.handle(spot('flat.fridge')));
   await step('квартира.дверь', () => sc.handle(spot('flat.door')));
 
@@ -72,7 +74,53 @@
   transcript.push('после боя: ' + g.phase + ' | hp ' + Math.round(g.player.vitals.state.health));
   await wait(300);
   await step('магазин.выход', () => sc.handle(spot('shop.exit')));
-  transcript.push('финал: ' + g.phase + ' | финальный экран ' + document.querySelectorAll('.finale').length);
+
+  // ————— домой —————
+  g.travelTo('stairwell', { spawnAt: 'stair.street-door' });
+  g.travelTo('flat', { spawnAt: 'flat.wardrobe' });
+  await step('квартира.шкаф на дрова', () => sc.handle(spot('flat.wardrobe')));
+  click('.choice', 0);
+  await wait(300);
+
+  g.travelTo('flat', { spawnAt: 'flat.stove' });
+  await step('квартира.печь', () => sc.handle(spot('flat.stove')));
+  click('.choice', 0);
+  await wait(300);
+  transcript.push('печь: ' + (g.heat.lit ? 'горит, ' + g.heat.burnHours.toFixed(1) + ' ч' : 'холодная'));
+
+  g.travelTo('flat', { spawnAt: 'flat.bed' });
+  await step('кровать.вечер', () => sc.handle(spot('flat.bed')));
+  click('.choice', 0); // дождаться темноты — сразу откроется «Первая ночь»
+  await wait(400);
+  transcript.push('вечер: ' + g.clock.label + ' | в комнате ' + g.heat.temperature.toFixed(1));
+  click('.choice', 0); // лечь спать
+  await wait(1500);
+  transcript.push(
+    'утро: день ' + g.clock.day + ' | ' + g.clock.label + ' | ' + g.phase + ' | в комнате ' +
+      g.heat.temperature.toFixed(1) + ' | тепло ' + Math.round(g.player.vitals.state.warmth),
+  );
+
+  // ————— день второй —————
+  await step('квартира.печь день 2', () => sc.handle(spot('flat.stove')));
+  if (document.querySelectorAll('.choice').length) click('.choice', 0);
+  await wait(300);
+  await step('квартира.печь день 2 ещё', () => sc.handle(spot('flat.stove')));
+  if (document.querySelectorAll('.choice').length) click('.choice', 0);
+  await wait(300);
+  transcript.push('печь день 2: ' + (g.heat.lit ? 'горит, ' + g.heat.burnHours.toFixed(1) + ' ч' : 'холодная'));
+
+  await step('кровать.день 2', () => sc.handle(spot('flat.bed')));
+  click('.choice', 0); // дождаться вечера — откроется «Вторая ночь»
+  await wait(500);
+  transcript.push('вечер 2: ' + g.clock.label + ' | в комнате ' + g.heat.temperature.toFixed(1));
+  click('.choice', 0); // лечь спать
+  await wait(1500);
+
+  transcript.push(
+    'финал: ' + g.phase + ' | экран ' + document.querySelectorAll('.finale').length + ' | заголовок «' +
+      (document.querySelector('.finale__title')?.textContent ?? '—') + '»',
+  );
+  transcript.push('сохранение после финала: ' + (localStorage.getItem('panel.zone.save.v1') ? 'есть' : 'стёрто'));
 
   return transcript.join('\n');
 })()
